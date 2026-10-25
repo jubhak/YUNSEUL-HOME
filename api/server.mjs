@@ -294,7 +294,47 @@ async function ensureMarket() {
     KEY idx_seen (seen)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 }
-const TABLES = { qna: 'qna', guestbook: 'guestbook', board: 'board', portfolio: 'portfolio', goods: 'shop_goods' };
+const TABLES = { qna: 'qna', guestbook: 'guestbook', board: 'board', portfolio: 'portfolio', goods: 'shop_goods', theater: 'theater_clip', opera: 'opera_track' };
+function ytId(u) {
+  const m = String(u || '').match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function mediaLink(v) {
+  const s = clip(v, 500);
+  if (!s) return null;
+  if (s.startsWith('/uploads/') && !s.includes('..')) return s;
+  return httpLink(s);
+}
+async function ensureCulture() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS theater_clip (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    display CHAR(1) NOT NULL DEFAULT 'Y'
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS opera_track (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    display CHAR(1) NOT NULL DEFAULT 'Y'
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+  const [t] = await pool.query('SELECT COUNT(*) AS c FROM theater_clip');
+  if (!t[0].c) {
+    await pool.query('INSERT INTO theater_clip (title, url) VALUES (?, ?), (?, ?)', [
+      '지구에 오신 걸 환영해요', 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
+      '귀여운 동물 영상', 'https://www.youtube.com/watch?v=hY7m5jjJ9mM'
+    ]);
+  }
+  const [o] = await pool.query('SELECT COUNT(*) AS c FROM opera_track');
+  if (!o[0].c) {
+    await pool.query('INSERT INTO opera_track (title, url) VALUES (?, ?), (?, ?)', [
+      '느긋한 피아노', 'https://www.youtube.com/watch?v=f02mOEt11cw',
+      '잔잔한 클래식', 'https://www.youtube.com/watch?v=jXgKid4cP38'
+    ]);
+  }
+}
 async function hideItem(req, res, table, id) {
   if (!TABLES[table]) return send(res, 404, { error: '글을 찾을 수 없어요' });
   if (!authed(req)) return send(res, 401, { error: '관리자만 지울 수 있어요' });
@@ -550,10 +590,43 @@ const server = http.createServer(async (req, res) => {
       await pool.query('INSERT INTO guestbook (name, body, images, emoji) VALUES (?, ?, ?, ?)', [name, html, JSON.stringify(imagesOf(html)), FACES[n[0].c % FACES.length]]);
       return send(res, 200, { ok: true });
     }
+    if (req.method === 'GET' && route === '/api/theater') {
+      const [rows] = await pool.query("SELECT id, title, url, created_at FROM theater_clip WHERE display = 'Y' ORDER BY id DESC");
+      return send(res, 200, { items: rows.map(r => ({ id: r.id, title: r.title, url: r.url, yt: ytId(r.url), date: dateOf(r.created_at) })) });
+    }
+    if (req.method === 'POST' && route === '/api/theater') {
+      if (!authed(req)) return send(res, 401, { error: '관리자만 영상을 등록할 수 있어요' });
+      const body = await readJson(req);
+      const title = clip(body.title, 200), url = mediaLink(body.url);
+      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      if (!url || !ytId(url)) return send(res, 400, { error: '유튜브 주소를 올바르게 입력해 주세요' });
+      await pool.query('INSERT INTO theater_clip (title, url) VALUES (?, ?)', [title, url]);
+      return send(res, 200, { ok: true });
+    }
+    const theaterHide = route.match(/^\/api\/theater\/(\d+)\/hide$/);
+    if (req.method === 'POST' && theaterHide) return await hideItem(req, res, 'theater', Number(theaterHide[1]));
+    if (req.method === 'GET' && route === '/api/opera') {
+      const [rows] = await pool.query("SELECT id, title, url, created_at FROM opera_track WHERE display = 'Y' ORDER BY id DESC");
+      return send(res, 200, { items: rows.map(r => ({ id: r.id, title: r.title, url: r.url, yt: ytId(r.url), date: dateOf(r.created_at) })) });
+    }
+    if (req.method === 'POST' && route === '/api/opera') {
+      if (!authed(req)) return send(res, 401, { error: '관리자만 노래를 등록할 수 있어요' });
+      const body = await readJson(req);
+      const title = clip(body.title, 200), url = mediaLink(body.url);
+      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      if (!url) return send(res, 400, { error: '노래 주소(유튜브 또는 음원)를 입력해 주세요' });
+      if (!ytId(url) && !/\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(url) && !url.startsWith('/uploads/')) {
+        return send(res, 400, { error: '유튜브 주소나 음원 파일 주소를 입력해 주세요' });
+      }
+      await pool.query('INSERT INTO opera_track (title, url) VALUES (?, ?)', [title, url]);
+      return send(res, 200, { ok: true });
+    }
+    const operaHide = route.match(/^\/api\/opera\/(\d+)\/hide$/);
+    if (req.method === 'POST' && operaHide) return await hideItem(req, res, 'opera', Number(operaHide[1]));
     send(res, 404, { error: '없는 주소예요' });
   } catch (e) {
     send(res, 500, { error: '서버에서 처리하지 못했어요' });
   }
 });
 
-ensureShop().then(() => ensureMarket()).then(() => server.listen(7780, '127.0.0.1')).catch(e => { console.error(e.message); process.exit(1); });
+ensureShop().then(() => ensureMarket()).then(() => ensureCulture()).then(() => server.listen(7780, '127.0.0.1')).catch(e => { console.error(e.message); process.exit(1); });

@@ -30,28 +30,30 @@ const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store))}catch(e){}};s
 const SPOTS={
  board:{icon:'📌',name:'게시판',reach:.34,html:()=>NOTICES.map(n=>`<details><summary><span>${n.t}</span><small>${n.d}</small></summary><p>${n.b}</p></details>`).join('')},
  shop:{icon:'🛍️',name:'상점',reach:.48,html:shopHtml},
- mail:{icon:'📮',name:'문의하기',reach:.26,html:()=>`<p>궁금한 점이 있으면 편하게 편지를 보내주세요.</p><p>✉️ ${CONTACT.mail.toUpperCase()}</p><div class="row"><a class="btn" href="mailto:${CONTACT.mail}">메일 보내기</a></div>`}
+ mail:{icon:'📮',name:'문의하기',reach:.26,html:()=>`<p>궁금한 점이 있으면 편하게 편지를 보내주세요.</p><p>✉️ ${CONTACT.mail.toUpperCase()}</p><div class="row"><a class="btn" href="mailto:${CONTACT.mail}">메일 보내기</a></div>`},
+ theater:{icon:'🎬',name:'극장',reach:.42},
+ opera:{icon:'🎭',name:'오페라하우스',reach:.42}
 };
 $('#site').textContent=SITE;
 let modalOpen=false,toastT,auto=null;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)};
 function shopHtml(){return shopPage()}
 function cartBar(){}
-function openSpot(k){if(k==='board'||k==='shop')return openDock(k);const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
-function closeModal(){if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on')}
+function openSpot(k){if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
+function closeModal(){if(!$('#ytlayer').hidden){closeYtLayer();return}if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on')}
 $('#mc').onclick=closeModal;$('#modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')closeModal()});
 
 /* ===== 도킹 패널 (게시판 · 질문과 답변 · 방명록 · 포트폴리오 · 지누기) ===== */
 let dockOn=false,dkT=0,dkv=0,wanderT=0,dockPlay=null,isAdmin=false,tabNow='me',pfOpen=0,boardOpen=0,editKind='',editId=0,editorDirty=false,adminToken=sessionStorage.getItem('jng_admin')||'',wysSeq=0;
-let BOARD=[],QNA=[],GB=[],PF=[],SALE=[],consults=[],wysSeed={},delPending=null,shopOpen=0,consultNew=0,goodsEdit=0,goodsPics=[];
+let BOARD=[],QNA=[],GB=[],PF=[],SALE=[],THEATER=[],OPERA=[],consults=[],wysSeed={},delPending=null,shopOpen=0,consultNew=0,goodsEdit=0,goodsPics=[];
 const delBtn=(kind,id)=>isAdmin?`<button type="button" class="del" data-del="${kind}" data-i="${id}" aria-label="삭제" title="삭제"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l1 2h4.5v2h-17v-2H8l1-2zM7 9h2v9H7zm4 0h2v9h-2zm4 0h2v9h-2zM6.5 20.5h11l.8-11.5h-12.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>`:'';
 const editBtn=(kind,id)=>`<button type="button" class="btn gh" data-edit="${kind}" data-i="${id}">수정하기</button>`;
 const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const TABS=[['me','👤','지누기'],['pf','💼','포트폴리오'],['board','📌','게시판'],['shop','🛍️','상점'],['qa','❓','질문과 답변'],['gb','📖','방명록']];
+const TABS=[['me','👤','지누기'],['pf','💼','포트폴리오'],['board','📌','게시판'],['theater','🎬','극장'],['opera','🎭','오페라'],['shop','🛍️','상점'],['qa','❓','질문과 답변'],['gb','📖','방명록']];
 const wys=id=>`<iframe class="wys" data-wys="${esc(id)}" src="/editor/core.html?embed=1" title="내용 편집"></iframe>`;
 function wysHtml(id){return new Promise(resolve=>{const frame=document.querySelector(`[data-wys="${id}"]`);if(!frame||!frame.contentWindow)return resolve('');const req=++wysSeq;const on=e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='yunseul-html'||e.data.id!==req)return;removeEventListener('message',on);resolve(e.data.html||'')};addEventListener('message',on);frame.contentWindow.postMessage({type:'yunseul-get',id:req},location.origin);setTimeout(()=>{removeEventListener('message',on);resolve('')},2000)})}
 async function api(path,opt={}){const headers=Object.assign({},opt.headers||{});if(opt.body)headers['Content-Type']='application/json';if(adminToken)headers.Authorization='Bearer '+adminToken;const r=await fetch(path,Object.assign({},opt,{headers}));const j=await r.json().catch(()=>({}));if(r.status===401&&path!=='/api/admin/login'){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;syncAdmin()}if(!r.ok)throw new Error(j.error||'요청에 실패했어요');return j}
-async function loadHome(){try{const [b,q,g,p,goods]=await Promise.all([api('/api/board'),api('/api/qna'),api('/api/guestbook'),api('/api/portfolio'),api('/api/goods')]);BOARD=b.items;QNA=q.items;GB=g.items;PF=p.items;SALE=goods.items;if(adminToken){try{const cs=await api('/api/consult');consults=cs.items;consultNew=cs.unread}catch(e){consults=[];consultNew=0}}else{consults=[];consultNew=0}if(dockOn)dockRender(true)}catch(e){toast('목록을 불러오지 못했어요')}}
+async function loadHome(){try{const [b,q,g,p,goods,th,op]=await Promise.all([api('/api/board'),api('/api/qna'),api('/api/guestbook'),api('/api/portfolio'),api('/api/goods'),api('/api/theater'),api('/api/opera')]);BOARD=b.items;QNA=q.items;GB=g.items;PF=p.items;SALE=goods.items;THEATER=th.items;OPERA=op.items;if(adminToken){try{const cs=await api('/api/consult');consults=cs.items;consultNew=cs.unread}catch(e){consults=[];consultNew=0}}else{consults=[];consultNew=0}if(dockOn)dockRender(true);if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel()}catch(e){toast('목록을 불러오지 못했어요')}}
 const qaItem=x=>{
  const editing=isAdmin&&editKind==='qa'&&editId===x.id;
  const editor=editing?`<div class="fm ans"><div>${wys('ans'+x.id)}</div><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="ans" data-i="${x.id}">${x.answer?'수정 완료':'답변 등록'}</button></div></div>`:'';
@@ -109,7 +111,13 @@ const PAGES={
  shop:()=>shopPage(),
  qa:()=>`<div class="card fm"><b>❓ 궁금한 점을 남겨 주세요</b><input id="qn" placeholder="이름"><input id="qt" placeholder="제목"><div>${wys('ask')}</div><button class="btn" data-act="ask">질문 등록</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${QNA.map(qaItem).join('')}`,
  gb:()=>`<div class="card fm"><b>📖 방명록 남기기</b><input id="gn" placeholder="이름"><div>${wys('guest')}</div><button class="btn" data-act="guest">남기기</button></div>${isAdmin?'<p class="hint2">글을 누르면 답변을 쓸 수 있어요</p>':''}${GB.map(gbCard).join('')}`,
+ theater:()=>theaterPanel(),
+ opera:()=>operaPanel(),
  cs:()=>`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')||'<p class="hint2">접수된 상담이 없어요</p>'}`};
+function theaterPanel(){return `${isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목"><input id="thu" placeholder="유튜브 주소"><button class="btn" data-act="theater-add">등록</button></div>`:'<p class="hint2">극장 건물에서도 영상을 볼 수 있어요</p>'}<div class="media-list">${THEATER.map(x=>`<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('theater',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`}
+function operaPanel(){return `${isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'<p class="hint2">오페라하우스에서 노래를 골라 들을 수 있어요</p>'}<div class="media-list">${OPERA.map(x=>`<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('opera',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`}
+function openTheater(){$('#mt').textContent='🎬 극장';$('#mb').innerHTML=theaterPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
+function openOpera(){$('#mt').textContent='🎭 오페라하우스';$('#mb').innerHTML=operaPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function syncAdmin(){const b=$('#adm');b.classList.toggle('on',isAdmin);b.title=isAdmin?'로그아웃':'관리자';b.setAttribute('aria-label',isAdmin?'관리자 로그아웃':'관리자')}
 function tabButtons(){const list=TABS.slice();if(isAdmin)list.push(['cs','📩','상담접수']);if(!isAdmin&&tabNow==='cs')tabNow='gb';return list.map(([k,i,n])=>`<button data-tab="${k}" class="${k===tabNow?'on':''}"><span>${i}</span>${n}${k==='cs'&&consultNew>0?`<i class="tbad">${consultNew>99?'99+':consultNew}</i>`:''}</button>`).join('')}
 function dockRender(keep){editorDirty=false;if(!isAdmin&&tabNow==='cs')tabNow='gb';const db=$('#db'),st=db.scrollTop;$('#tabs').innerHTML=tabButtons();syncAdmin();db.innerHTML=PAGES[tabNow]();db.scrollTop=keep?st:0;if(tabNow==='shop')cartBar()}
@@ -123,9 +131,9 @@ function requestCloseDock(){if(!dockOn)return;if(hasDraft())askClose();else clos
 $('#wkeep').onclick=()=>$('#warn').classList.remove('on');
 $('#wclose').onclick=()=>{$('#warn').classList.remove('on');closeDock()};
 $('#delno').onclick=()=>{$('#delask').classList.remove('on');delPending=null};
-const hidePath={qna:id=>'/api/qna/'+id+'/hide',gb:id=>'/api/guestbook/'+id+'/hide',board:id=>'/api/board/'+id+'/hide',pf:id=>'/api/portfolio/'+id+'/hide',goods:id=>'/api/goods/'+id+'/hide','qa-ans':id=>'/api/qna/'+id+'/answer/clear','gb-ans':id=>'/api/guestbook/'+id+'/answer/clear'};
-function askDel(kind,id){delPending={kind,id};const ans=kind==='qa-ans'||kind==='gb-ans',goods=kind==='goods';$('#delt').textContent=ans?'이 답변을 지울까요?':goods?'이 상품을 지울까요?':'정말 지울까요?';$('#delp').textContent=ans?'답변만 지워지고 글은 남아요.':goods?'삭제하면 상점에서 보이지 않아요.':'삭제하면 이 글은 화면에서 보이지 않아요.';$('#delask').classList.add('on');$('#delok').focus()}
-$('#delok').onclick=async()=>{const p=delPending;$('#delask').classList.remove('on');delPending=null;if(!p)return;try{await api(hidePath[p.kind](p.id),{method:'POST',body:'{}'});if(p.kind==='board'&&boardOpen===p.id)boardOpen=0;if(p.kind==='pf'&&pfOpen===p.id)pfOpen=0;if(p.kind==='goods'&&shopOpen===p.id)shopOpen=0;if(p.kind==='goods'&&goodsEdit===p.id){goodsEdit=0;goodsPics=[]}if(editKind&&editId===p.id){editKind='';editId=0}toast(p.kind.endsWith('ans')?'답변을 지웠어요':p.kind==='goods'?'상품을 지웠어요':'글을 지웠어요');await loadHome()}catch(err){toast(err.message)}};
+const hidePath={qna:id=>'/api/qna/'+id+'/hide',gb:id=>'/api/guestbook/'+id+'/hide',board:id=>'/api/board/'+id+'/hide',pf:id=>'/api/portfolio/'+id+'/hide',goods:id=>'/api/goods/'+id+'/hide',theater:id=>'/api/theater/'+id+'/hide',opera:id=>'/api/opera/'+id+'/hide','qa-ans':id=>'/api/qna/'+id+'/answer/clear','gb-ans':id=>'/api/guestbook/'+id+'/answer/clear'};
+function askDel(kind,id){delPending={kind,id};const ans=kind==='qa-ans'||kind==='gb-ans',goods=kind==='goods',clip=kind==='theater'||kind==='opera';$('#delt').textContent=ans?'이 답변을 지울까요?':goods?'이 상품을 지울까요?':clip?'이 항목을 지울까요?':'정말 지울까요?';$('#delp').textContent=ans?'답변만 지워지고 글은 남아요.':goods?'삭제하면 상점에서 보이지 않아요.':clip?'삭제하면 목록에서 보이지 않아요.':'삭제하면 이 글은 화면에서 보이지 않아요.';$('#delask').classList.add('on');$('#delok').focus()}
+$('#delok').onclick=async()=>{const p=delPending;$('#delask').classList.remove('on');delPending=null;if(!p)return;try{await api(hidePath[p.kind](p.id),{method:'POST',body:'{}'});if(p.kind==='board'&&boardOpen===p.id)boardOpen=0;if(p.kind==='pf'&&pfOpen===p.id)pfOpen=0;if(p.kind==='goods'&&shopOpen===p.id)shopOpen=0;if(p.kind==='goods'&&goodsEdit===p.id){goodsEdit=0;goodsPics=[]}if(editKind&&editId===p.id){editKind='';editId=0}toast(p.kind.endsWith('ans')?'답변을 지웠어요':p.kind==='goods'?'상품을 지웠어요':p.kind==='theater'?'영상을 지웠어요':p.kind==='opera'?'노래를 지웠어요':'글을 지웠어요');await loadHome()}catch(err){toast(err.message)}};
 $('#dc').onclick=requestCloseDock;
 addEventListener('message',e=>{if(e.origin!==location.origin||!e.data)return;if(e.data.type==='yunseul-dirty')editorDirty=true;if(e.data.type==='yunseul-ready'){const frame=[...document.querySelectorAll('iframe.wys')].find(f=>f.contentWindow===e.source);if(frame&&wysSeed[frame.dataset.wys]!=null)frame.contentWindow.postMessage({type:'yunseul-set',html:wysSeed[frame.dataset.wys]},location.origin)}});
 async function tryAdmin(){const password=$('#admp').value;try{const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password})});adminToken=j.token;sessionStorage.setItem('jng_admin',adminToken);isAdmin=true;$('#admp').value='';$('#admlock').classList.remove('on');syncAdmin();toast('관리자 모드예요');await loadHome()}catch(e){toast(e.message)}}
@@ -146,6 +154,8 @@ $('#db').addEventListener('click',async e=>{const t=e.target.closest('[data-act]
   else if(a==='guest'){const body=await wysHtml('guest');await api('/api/guestbook',{method:'POST',body:JSON.stringify({name:v('gn'),body})});toast('방명록을 남겼어요');await loadHome()}
   else if(a==='goods-save'){const body={name:v('gn'),price:v('gp'),salePrice:v('gs'),saleFrom:v('gf'),saleTo:v('gt'),link:v('gl'),images:goodsPics.slice()};await api(t.dataset.i?'/api/goods/'+t.dataset.i:'/api/goods',{method:'POST',body:JSON.stringify(body)});const edited=!!t.dataset.i;goodsEdit=0;goodsPics=[];toast(edited?'상품을 수정했어요':'상품을 등록했어요');await loadHome()}
   else if(a==='consult'){await api('/api/consult',{method:'POST',body:JSON.stringify({goodsId:+t.dataset.i,contact:v('cc'),name:v('cn'),job:v('cj')})});toast('구매 상담을 접수했어요');['cc','cn','cj'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const box=document.getElementById('csbox');if(box)box.hidden=true}
+  else if(a==='theater-add'){await api('/api/theater',{method:'POST',body:JSON.stringify({title:v('tht'),url:v('thu')})});toast('영상을 등록했어요');await loadHome()}
+  else if(a==='opera-add'){await api('/api/opera',{method:'POST',body:JSON.stringify({title:v('opt'),url:v('opu')})});toast('노래를 등록했어요');await loadHome()}
  }catch(err){toast(err.message)}
 });
 
@@ -169,6 +179,7 @@ function walletPage(){
 function openWallet(){if(snack)endSnack();if(walletOpen){closeModal();return}walletOpen=true;$('#mt').textContent='👛 내 지갑';$('#mb').innerHTML=walletPage();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 $('#wal').onclick=openWallet;$('#menub').onclick=()=>{if(dockOn){requestCloseDock();return}if(walletOpen)closeModal();openDock('board')};walBadge();
 $('#mb').addEventListener('click',e=>{
+ const del=e.target.closest('[data-del]');if(del){askDel(del.dataset.del,+del.dataset.i);return}
  const wear=e.target.closest('[data-wear]'),eat=e.target.closest('[data-eat]');
  if(wear||eat){const box=(wear||eat).parentElement.parentElement.querySelector('.who');if(box)box.hidden=!box.hidden;return}
  const off=e.target.closest('[data-off]');if(off){wearOn[off.dataset.off]='';saveLook();applyLook();refreshWallet();toast('벗겼어요');return}
@@ -328,6 +339,8 @@ function buildPlanet(){
 
 const TOP=new T.Vector3(0,1,0),_m=new T.Matrix4(),_f=new T.Vector3(),_x=new T.Vector3();
 const nrm=(a,b)=>new T.Vector3(Math.sin(a)*Math.sin(b),Math.cos(a),-Math.sin(a)*Math.cos(b));
+/* Same frame as left-bottom HUD: lat/lon → unit normal (asin(y), atan2(x,z)). */
+function hudN(lat,lon){const la=lat*Math.PI/180,lo=lon*Math.PI/180,c=Math.cos(la);return new T.Vector3(Math.sin(lo)*c,Math.sin(la),Math.cos(lo)*c).normalize()}
 function basisQ(n,dir,out){_f.copy(dir).sub(_x.copy(n).multiplyScalar(dir.dot(n)));if(_f.lengthSq()<1e-4)_f.set(0,0,1);_f.normalize();_x.crossVectors(n,_f);_m.makeBasis(_x,n,_f);return out.setFromRotationMatrix(_m)}
 function place(o,n,rot=0){o.position.copy(n).multiplyScalar(R-.03);basisQ(n,TOP,o.quaternion);o.rotateY(rot);world.add(o);o.userData.n=n;return o}
 function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
@@ -387,12 +400,38 @@ function buildSpots(){
  const sl=labelBig('🛍️ 상점',{as:'🛍️ 쇼핑몰',fs:92,fontScale:.8,pad:15,bw:12,bg:'#fff1f3',bd:'#ff6f8f',fg:'#e0405f',dots:'#ffb3c4'}),sw2=3.1,sh2=sw2*sl.userData.h/sl.userData.w;mk(new T.BoxGeometry(sw2-.2,sh2-.2,.1),M(0xff6f8f),0,2.2,0,g);pl=plane(sl,sw2,sh2);pl.position.set(0,2.2,.06);g.add(pl);spot('shop',g,nrm(.8,-.55),1.4);
  g=new T.Group();mk(new T.BoxGeometry(.14,1,.14),wood,0,.5,0,g);mk(new T.BoxGeometry(.7,.55,1),M(0x4c8bf5),0,1.25,0,g);mk(new T.BoxGeometry(.05,.4,.05),M(0xdd3333),.38,1.55,0,g);
  pl=plane(label('문의','MAIL','#4c8bf5','#fff'),.55,.3);pl.position.set(0,1.25,.51);g.add(pl);spot('mail',g,nrm(1.05,2.35),1);
+ /* User HUD coords: Opera N27.0 E126.5 · Theater N30.9 E151.9 */
+ const operaN=hudN(27.0,126.5),theaterN=hudN(30.9,151.9);
+ g=new T.Group();
+ const marble=M(0xf4efe6,{roughness:.55}),gold=M(0xe6c15a,{roughness:.35,metalness:.35}),rose=M(0xff8fab),deep=M(0x5b3d7a);
+ mk(new T.BoxGeometry(2.6,1.55,2.1),marble,0,.78,0,g);
+ mk(new T.BoxGeometry(2.9,.18,2.4),gold,0,1.62,0,g);
+ mk(new T.CylinderGeometry(.55,.55,.35,20),gold,0,1.9,0,g);
+ mk(new T.SphereGeometry(.42,16,12),rose,0,2.28,0,g);
+ [-1.05,0,1.05].forEach(x=>mk(new T.CylinderGeometry(.12,.14,1.55,10),marble,x,.78,1.05,g));
+ mk(new T.BoxGeometry(1.1,1.2,.08),deep,0,.7,1.08,g);
+ pl=plane(labelBig('🎭 오페라',{as:'🎭 오페라',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff4fb',bd:'#d98bb8',fg:'#8a3d6b',dots:'#f0b6d4'}),1.9,.55);pl.position.set(0,2.55,.2);g.add(pl);
+ spot('opera',g,operaN,2.2);
+ g=new T.Group();
+ const brick=M(0xffc4a8,{roughness:.7}),red=M(0xe85d5d),cream=M(0xfff6e8),navy=M(0x3d5a80);
+ mk(new T.BoxGeometry(2.8,1.35,2.2),brick,0,.68,0,g);
+ mk(new T.BoxGeometry(3.1,.22,2.5),red,0,1.45,0,g);
+ mk(new T.BoxGeometry(1.6,.9,1.4),cream,0,1.1,-.2,g);
+ mk(new T.BoxGeometry(.9,1.05,.12),navy,0,.72,1.12,g);
+ [[-1.1,.95],[1.1,.95],[-1.1,.55],[1.1,.55]].forEach(([x,y])=>mk(new T.BoxGeometry(.35,.28,.05),M(0x9be3ff,{emissive:0x4aa8c8,emissiveIntensity:.35}),x,y,1.12,g));
+ mk(new T.CylinderGeometry(.04,.04,1.1,6),M(0xffffff),-.55,1.95,.9,g);
+ mk(new T.ConeGeometry(.35,.2,12),red,-.55,2.55,.9,g);
+ pl=plane(labelBig('🎬 극장',{as:'🎬 극장',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff1f0',bd:'#e85d5d',fg:'#b33a3a',dots:'#ffb3a8'}),1.7,.5);pl.position.set(0,2.2,.15);g.add(pl);
+ spot('theater',g,theaterN,2.0);
  const bn=spotObjs.find(s=>s.userData.spot==='board').userData.n,sn=spotObjs.find(s=>s.userData.spot==='shop').userData.n,mid=bn.clone().add(sn).normalize();
  world.quaternion.setFromUnitVectors(mid,new T.Vector3(0,1,0));
  world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-.22));
  yaw=0;
  buildRides();
  buildRelax();
+ /* Keep trees/rocks/flowers off opera & theater pads (buildProps reads clearN). */
+ window.clearN=window.clearN||[];
+ window.clearN.push({n:operaN.clone(),pad:.92},{n:theaterN.clone(),pad:.92});
 }
 /* 미끄럼은 미끄럼 반대편 사다리에서 미끄럼 쪽을 보며 올라간다. 그네는 줄을 잡고 움직이기 전까지 탄다 */
 function courseOf(parent,x){
@@ -470,7 +509,8 @@ function buildProps(){
  let sd=11;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
  const gT=new T.CylinderGeometry(.07,.1,.5,6),gC=new T.ConeGeometry(.45,.9,8),gS=new T.IcosahedronGeometry(.5,1),gF=new T.SphereGeometry(.09,8,6),gR=new T.DodecahedronGeometry(.3,0),gL=new T.ConeGeometry(.13,1,4),gP=new T.CylinderGeometry(.06,.1,1.5,6),gU=new T.ConeGeometry(.9,.4,10);
  const trunk=M(0x8a5a3a),pine=M(0x3f9d5a),leaf=M(0x6bcf63),rock=M(0xa9b0b5,{flatShading:true}),stem=M(0x3f9a45),red=M(0xff5a5f),white=M(0xffffff),used=window.propN=(window.rideN||[]).map(v=>{const c=v.clone();c.ride=1;return c});
- const free=(n,m)=>clearOfRides(n,.65)&&n.angleTo(TOP)>.4&&spotObjs.every(s=>s.userData.n.angleTo(n)>(s.userData.spot==='board'?Math.max(m,.78):m))&&used.every(u=>u.angleTo(n)>(u.ride?0.7:0.16))&&(window.clearN||[]).every(c=>n.angleTo(c.n)>(c.pad||.7));
+ const spotPad=(sp,m)=>sp==='board'?Math.max(m,.78):sp==='shop'?Math.max(m,.72):(sp==='opera'||sp==='theater')?Math.max(m,.9):m;
+ const free=(n,m)=>clearOfRides(n,.65)&&n.angleTo(TOP)>.4&&spotObjs.every(s=>s.userData.n.angleTo(n)>spotPad(s.userData.spot,m))&&used.every(u=>u.angleTo(n)>(u.ride?0.7:0.16))&&(window.clearN||[]).every(c=>n.angleTo(c.n)>(c.pad||.7));
  /* Planet-wide: every tree/rock/umbrella is decorative — walk through like flowers. */
  const spawn=(cnt,fn,m)=>{for(let i=0,k=0;i<cnt&&k<800;k++){const n=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(!free(n,m))continue;used.push(n);const g=new T.Group();g.userData.walkThrough=true;fn(g);g.scale.setScalar(.9+rnd()*.35);place(g,n,rnd()*6.28);i++}};
  spawn(10,g=>{mk(gT,trunk,0,.25,0,g);mk(gC,pine,0,.8,0,g);mk(gC,pine,0,1.15,0,g).scale.setScalar(.75)},.55);
@@ -500,7 +540,7 @@ function buildProps(){
  flowerN=[];flowerSway.length=0;
  function canPlant(n,gap){
   if(n.y>.99||!clearOfRides(n,.32))return false;
-  for(const s of spotObjs){const sp=s.userData.spot,pad=sp==='board'?.36:sp==='shop'?.52:sp==='mail'?.24:.3;if(s.userData.n.angleTo(n)<pad)return false}
+  for(const s of spotObjs){const sp=s.userData.spot,pad=sp==='board'?.36:sp==='shop'?.52:sp==='mail'?.24:(sp==='theater'||sp==='opera')?.78:.3;if(s.userData.n.angleTo(n)<pad)return false}
   for(const u of used)if(u.angleTo(n)<(u.ride?u.pad:gap))return false;
   for(const h of homes)if(h.angleTo(n)<.18)return false;
   for(const c of (window.clearN||[]))if(c.n.angleTo(n)<(c.pad||.7))return false;
@@ -628,10 +668,91 @@ function startAudio(){
 }
 const SP='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>';
 const volIcon=()=>{const lv=muted||vol===0?0:vol<.34?1:vol<.67?2:3;$('#snd').innerHTML=SP+(lv===0?'<path d="M16 9.5l5 5M21 9.5l-5 5"/>':lv===1?'<path d="M15.5 10.5a2.5 2.5 0 0 1 0 3"/>':lv===2?'<path d="M15.5 9a4.5 4.5 0 0 1 0 6"/>':'<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>')+'</svg>'};
-const applyVol=()=>{volIcon();if(ac){mast.gain.setTargetAtTime(mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(sg(),ac.currentTime,.1);ac.resume()}};
+let operaOn=false,operaAudio=null,operaYt=null;
+function operaHost(){
+ let host=$('#operaYtHost');
+ if(!host){host=document.createElement('div');host.id='operaYtHost';host.setAttribute('aria-hidden','true');
+  /* Keep a real-size mini player near the volume badge so YouTube/autoplay is allowed. */
+  host.style.cssText='position:fixed;right:calc(env(safe-area-inset-right,0px) + 14px);top:calc(env(safe-area-inset-top,0px) + 64px);width:220px;height:124px;z-index:7;overflow:hidden;border-radius:14px;box-shadow:0 10px 28px #0005;background:#000;pointer-events:none';
+  document.body.appendChild(host)}
+ return host;
+}
+function ytPost(func,args=[]){
+ const f=$('#operaYtFrame');
+ if(f&&f.contentWindow)try{f.contentWindow.postMessage(JSON.stringify({event:'command',func,args}),'*')}catch(e){}
+}
+function syncOperaVol(){
+ if(operaAudio)operaAudio.volume=muted?0:vol;
+ if(!operaYt)return;
+ try{
+  const v=muted?0:Math.max(1,Math.round(vol*100));
+  if(typeof operaYt.setVolume==='function')operaYt.setVolume(v);
+  if(muted||vol===0){if(operaYt.mute)operaYt.mute()}else if(operaYt.unMute)operaYt.unMute();
+ }catch(e){}
+}
+const applyVol=()=>{volIcon();if(ac){mast.gain.setTargetAtTime(operaOn?0:mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(sg(),ac.currentTime,.1);ac.resume()}syncOperaVol()};
 $('#snd').onclick=()=>{if(vol===0){vol=.2;$('#vol').value=20;muted=false}else muted=!muted;applyVol()};
 $('#vol').addEventListener('input',e=>{vol=e.target.value/100;muted=false;applyVol()});
 volIcon();
+function showOperaBadge(on){const b=$('#operaBadge');if(b)b.hidden=!on}
+function stopOpera(){
+ if(operaAudio){try{operaAudio.pause();operaAudio.src=''}catch(e){}operaAudio=null}
+ if(operaYt){try{if(operaYt.stopVideo)operaYt.stopVideo();if(operaYt.destroy)operaYt.destroy()}catch(e){}operaYt=null}
+ const host=$('#operaYtHost');if(host)host.remove();
+ operaOn=false;showOperaBadge(false);applyVol();
+}
+/* Must run synchronously inside the click handler — awaiting YouTube API breaks autoplay. */
+function playOperaIframe(id){
+ const host=operaHost();
+ /* Start muted so autoplay is allowed, then unmute after handshake (user click already happened). */
+ host.innerHTML=`<iframe id="operaYtFrame" src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&rel=0&playsinline=1&controls=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="opera" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;border:0"></iframe>`;
+ operaYt={
+  stopVideo(){const f=$('#operaYtFrame');if(f)f.src=''},
+  destroy(){host.innerHTML=''},
+  setVolume(v){ytPost('setVolume',[v])},
+  mute(){ytPost('mute')},
+  unMute(){ytPost('unMute')}
+ };
+ const kick=()=>{
+  const f=$('#operaYtFrame');
+  if(f&&f.contentWindow)try{f.contentWindow.postMessage(JSON.stringify({event:'listening',id:1,channel:'opera'}), '*')}catch(e){}
+  syncOperaVol();
+ };
+ setTimeout(kick,400);setTimeout(kick,1200);
+}
+function playOperaTrack(item){
+ if(!item)return;
+ stopOpera();startAudio();
+ operaOn=true;showOperaBadge(true);
+ const id=item.yt||((String(item.url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)||[])[1]||'');
+ if(id){
+  playOperaIframe(id);
+  if(ac)ac.resume();
+  applyVol();
+  toast('♪ '+item.title);
+  return;
+ }
+ operaAudio=new Audio(item.url);operaAudio.loop=false;operaAudio.volume=muted?0:vol;
+ operaAudio.addEventListener('ended',stopOpera);
+ if(ac)ac.resume();
+ applyVol();
+ operaAudio.play().then(()=>toast('♪ '+item.title)).catch(()=>{stopOpera();toast('노래를 재생하지 못했어요')});
+}
+$('#operaStop').onclick=()=>{stopOpera();toast('바다 소리가 돌아왔어요')};
+function openYtLayer(item){
+ if(!item||!item.yt){toast('재생할 유튜브 영상이 없어요');return}
+ const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer.querySelector('.ytbox');
+ $('#ytt').textContent=item.title;frame.src='https://www.youtube-nocookie.com/embed/'+item.yt+'?autoplay=1&rel=0';box.classList.remove('fs');$('#ytfs').textContent='⛶ 전체보기';layer.hidden=false;modalOpen=true;
+}
+function closeYtLayer(){const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer&&layer.querySelector('.ytbox');if(!layer||layer.hidden)return;frame.src='';if(box)box.classList.remove('fs');layer.hidden=true;if(!dockOn&&!$('#modal').classList.contains('on'))modalOpen=false}
+$('#ytx').onclick=closeYtLayer;
+$('#ytfs').onclick=()=>{const box=$('#ytlayer').querySelector('.ytbox'),on=box.classList.toggle('fs');$('#ytfs').textContent=on?'⤢ 창으로':'⛶ 전체보기'};
+$('#ytlayer').addEventListener('pointerdown',e=>{if(e.target.id==='ytlayer')closeYtLayer()});
+function bindMediaClicks(root){root.addEventListener('click',e=>{
+ const yt=e.target.closest('[data-yt]');if(yt&&!e.target.closest('[data-del]')){const item=THEATER.find(x=>x.id===+yt.dataset.yt);if(item)openYtLayer(item);return}
+ const song=e.target.closest('[data-song]');if(song&&!e.target.closest('[data-del]')){const item=OPERA.find(x=>x.id===+song.dataset.song);if(item)playOperaTrack(item)}
+})}
+bindMediaClicks($('#mb'));bindMediaClicks($('#db'));
 function noiseBuf(d){const n=Math.ceil(ac.sampleRate*d),b=ac.createBuffer(1,n,ac.sampleRate),a=b.getChannelData(0);for(let i=0;i<n;i++)a[i]=Math.random()*2-1;return b}
 /* 귀여운 강아지 "멍!": 높은 소리에서 뚝 떨어지는 짧은 통통한 소리 + 입 모양(우→아) 포먼트 */
 function bark(){if(!ac||ac.state!=='running'||muted||vol===0)return;const t=ac.currentTime,p=1+(Math.random()-.5)*.08,
@@ -913,7 +1034,7 @@ function addFootprint(object,hx,hz,cx=0,cz=0,round=false){
 }
 function buildNavigation(){
  solidFootprints.length=0;navCache.clear();navGrid=null;
- for(const o of spotObjs){const kind=o.userData.spot;addFootprint(o,kind==='shop'?1.8:kind==='board'?1.18:.48,0,0,0,true)}
+ for(const o of spotObjs){const kind=o.userData.spot;addFootprint(o,kind==='shop'?1.8:kind==='board'?1.18:(kind==='theater'||kind==='opera')?1.55:.48,0,0,0,true)}
  for(const o of rides){if(o.userData.ride==='slide')addFootprint(o,.98,2.43,0,.88);else addFootprint(o,1.42,.50)}
  bedRoot.userData.beds.forEach(b=>addFootprint(b,.50,1.18,0,.15));
  addFootprint(bedRoot,.40,.40,0,.15);
@@ -1854,7 +1975,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
  if(!ride&&!rest&&!lying&&!snack&&!modalOpen){
   let best=Infinity;
   for(const o of spotObjs){
-   const kind=o.userData.spot,hx=kind==='shop'?1.9:kind==='board'?1.25:.7;
+   const kind=o.userData.spot,hx=kind==='shop'?1.9:kind==='board'?1.25:(kind==='theater'||kind==='opera')?1.7:.7;
    const a=localProximity(o,hx,0,0,0,true,1.25);
    if(a<best){best=a;near=o.userData.spot;nearRide=null;nearRelax=null}
   }
