@@ -198,16 +198,17 @@ const TOD=[
 {ic:'🌙',name:'달님',sun:new T.Vector2(.66,.82),sunC:V([1,.86,.4]),glow:.7,moon:1,skyH:V([.13,.17,.36]),skyM:V([.06,.09,.26]),skyT:V([.02,.03,.12]),seaN:V([.2,.26,.42]),seaM:V([.07,.11,.27]),seaF:V([.02,.04,.14]),tint:V([.55,.6,.9]),night:1,ct:V([.3,.34,.55]),hs:Cc(0x8d9bdc),hg:Cc(0x34385f),hi:.7,lc:Cc(0xc4d0ff),li:.45,at:Cc(0x7f8fd8)}];
 const cur={};['sun','sunC','skyH','skyM','skyT','seaN','seaM','seaF','tint','ct'].forEach(k=>cur[k]=TOD[2][k].clone());
 let todIdx=2;
-const bgS=new T.Scene(),bgC=new T.OrthographicCamera(-1,1,1,-1,-5,5),U={uT:{value:0},uSw:{value:0},uR:{value:new T.Vector2(1,1)},uGlow:{value:.55},uNight:{value:0},uMoon:{value:0},uWx:{value:0},uRain:{value:0},uFlash:{value:0},uSun:{value:cur.sun},uSunC:{value:cur.sunC},uSkyH:{value:cur.skyH},uSkyM:{value:cur.skyM},uSkyT:{value:cur.skyT},uSeaN:{value:cur.seaN},uSeaM:{value:cur.seaM},uSeaF:{value:cur.seaF},uTint:{value:cur.tint}};
+const bgS=new T.Scene(),bgC=new T.OrthographicCamera(-1,1,1,-1,-5,5),U={uT:{value:0},uSw:{value:0},uR:{value:new T.Vector2(1,1)},uGlow:{value:.55},uNight:{value:0},uMoon:{value:0},uWx:{value:0},uRain:{value:0},uFlash:{value:0},uBow:{value:0},uSun:{value:cur.sun},uSunC:{value:cur.sunC},uSkyH:{value:cur.skyH},uSkyM:{value:cur.skyM},uSkyT:{value:cur.skyT},uSeaN:{value:cur.seaN},uSeaM:{value:cur.seaM},uSeaF:{value:cur.seaF},uTint:{value:cur.tint}};
 const M=(c,o={})=>new T.MeshStandardMaterial(Object.assign({color:c,roughness:.75},o));
 const mk=(g,m,x=0,y=0,z=0,p)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;p&&p.add(o);return o};
 const swell=t=>Math.pow(.5+.5*Math.sin(t*6.2832/9),1.4);
+function bowNow(){const d=new Date(),m=(d.getMinutes()%10)*60+d.getSeconds()+d.getMilliseconds()/1000;if(m>=300)return 0;if(m<=255)return 1;const t=(300-m)/45;return t*t*(3-2*t)}
 
 function buildBg(){
  if(BG_VIDEO)return;
  bgS.add(new T.Mesh(new T.PlaneGeometry(2,2),new T.ShaderMaterial({uniforms:U,depthTest:false,depthWrite:false,
  vertexShader:'void main(){gl_Position=vec4(position.xy,0.,1.);}',
- fragmentShader:`uniform float uT,uSw,uGlow,uNight,uMoon,uWx,uFlash,uRain;uniform vec2 uR,uSun;uniform vec3 uSunC,uSkyH,uSkyM,uSkyT,uSeaN,uSeaM,uSeaF,uTint;
+ fragmentShader:`uniform float uT,uSw,uGlow,uNight,uMoon,uWx,uFlash,uRain,uBow;uniform vec2 uR,uSun;uniform vec3 uSunC,uSkyH,uSkyM,uSkyT,uSeaN,uSeaM,uSeaF,uTint;
  float h(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
  float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*f*(f*(f*6.-15.)+10.);return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}
  float fbm(vec2 p){float a=.5,s=0.;mat2 m=mat2(.8,-.6,.6,.8);for(int i=0;i<4;i++){s+=a*n(p);p=m*p*2.03+7.1;a*=.5;}return s;}
@@ -221,6 +222,17 @@ function buildBg(){
    vec3 sky=mix(uSkyH,uSkyM,smoothstep(0.,.3,s));
    sky=mix(sky,uSkyT,smoothstep(.25,1.,s));
    vec2 d=(uv-uSun)*vec2(asp,1.);float sd=length(d);
+   float pz=1./(.3+s*1.6);vec2 cp=vec2((uv.x-.5)*asp*pz*1.2+t*.012,pz*1.6);
+   float cl=smoothstep(.6-.34*uWx,.95-.3*uWx,fbm(cp+3.))*smoothstep(0.,.2,s)*(1.-smoothstep(.55,1.,s)*(.6-.5*uWx));
+   float cf=min(1.,cl*(.85+.15*uWx));
+   vec2 bowC=vec2(.5,-.10);vec2 bowD=(uv-bowC)*vec2(asp,1.);float bowR=length(bowD),bowOut=1.02,bowTh=.176,bowIn=bowOut-bowTh;
+   float bowT=clamp((bowOut-bowR)/bowTh,0.,.999);
+   float bowM=smoothstep(0.,.012,min(bowR-bowIn,bowOut-bowR))*step(.02,bowD.y);
+   bowM*=smoothstep(H,H+.03,y);
+   float sunUp=(1.-uMoon)*(1.-smoothstep(.25,.7,uNight))*smoothstep(.6,.66,uSun.y)*(1.-uWx*.8);
+   bowM*=(1.-smoothstep(.2,.06,sd))*(1.-smoothstep(0.,.16,cf));
+   vec3 bowCol=mix(bow(bowT),vec3(.9,.95,1.),.22);
+   sky=mix(sky,bowCol,bowM*sunUp*uBow*.105);
    sky+=uSunC*(exp(-sd*4.5)*.5*uGlow*(1.-.5*uMoon)+exp(-sd*34.)*.9)*(1.-.85*uWx);sky+=uSunC*(exp(-sd*11.)*.4+exp(-sd*3.)*.1)*uMoon*(1.-uWx);
    sky+=uSunC*exp(-s*7.)*exp(-abs(uv.x-uSun.x)*asp*.9)*.4*uGlow*(1.-.85*uMoon);
    float nt=smoothstep(.35,1.,uNight)*(1.-uWx),hz=smoothstep(.03,.4,s);
@@ -241,17 +253,9 @@ function buildBg(){
    float e0=mix(.024,.046,uMoon),e1=mix(.034,.05,uMoon);
    vec3 dc=mix(uSunC*1.25,uSunC*(1.12-.2*fbm(d*34.))*(1.-.1*sd/e1),uMoon);
    sky=mix(sky,dc,(1.-smoothstep(e0,e1,sd))*.97*(1.-uWx));
-   float pz=1./(.3+s*1.6);vec2 cp=vec2((uv.x-.5)*asp*pz*1.2+t*.012,pz*1.6);
-   float cl=smoothstep(.6-.34*uWx,.95-.3*uWx,fbm(cp+3.))*smoothstep(0.,.2,s)*(1.-smoothstep(.55,1.,s)*(.6-.5*uWx));
    vec3 cc=mix(vec3(1.),uSkyH*1.15,.55)*(1.-.5*uNight);cc=mix(cc,vec3(dot(cc,vec3(.33)))*vec3(.78,.82,.88),uWx*.8);
-   col=mix(sky,cc,min(1.,cl*(.85+.15*uWx)));
+   col=mix(sky,cc,cf);
    col=mix(col,vec3(dot(col,vec3(.33)))*vec3(.86,.9,.96)*(1.-.28*uWx),uWx*.8);
-   vec2 bowC=vec2(.5,-.16);vec2 bowD=(uv-bowC)*vec2(asp,1.);float bowR=length(bowD),bowOut=1.02,bowTh=.22,bowIn=bowOut-bowTh;
-   float bowT=clamp((bowOut-bowR)/bowTh,0.,.999);
-   float bowM=smoothstep(0.,.012,min(bowR-bowIn,bowOut-bowR))*step(.02,bowD.y);
-   bowM*=smoothstep(H,H+.03,y);
-   float sunUp=(1.-uMoon)*(1.-smoothstep(.25,.7,uNight))*smoothstep(.6,.66,uSun.y)*(1.-uWx*.8);
-   col=mix(col,bow(bowT),bowM*sunUp*.72);
   }else{
    float z=min(K/(H-y),40.);
    float wx=(uv.x-.5)*asp*z*2.;
@@ -1179,7 +1183,7 @@ const look=new T.Vector3(0,2,0),dir=new T.Vector3(-.09,.5,.86).normalize(),camDi
 function resize(){const w=innerWidth,h=innerHeight;rd.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();rd.getDrawingBufferSize(U.uR.value);bgC.left=-cam.aspect;bgC.right=cam.aspect;bgC.updateProjectionMatrix();fxResize();k=Math.max(1,Math.pow(.95/cam.aspect,.8))}
 addEventListener('resize',resize);
 function frame(){requestAnimationFrame(frame);if(halted)return;const dt=Math.min(clock.getDelta(),.05);tw+=dt;
- const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;audioTick(sw);
+ const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
  if(!ride&&dockOn&&!auto)auto={n:rv(),reach:.05};if(!ride&&dockOn&&(wanderT-=dt)<=0){wanderT=2+rnd2()*3;if(rnd2()<.5&&jh<=0)jv=6.5}
@@ -1294,7 +1298,7 @@ function endSnack(){if(!snack)return;const s=snack;snack=null;if(s.food&&s.food.
 function eatPose(){if(!snack)return;const r=rigOf(snack.who);if(!r||!r.head)return;const sway=Math.sin(tw*1.05)*.2;if(r.arms){toMouth.set(snack.who==='girl'?-.36:-.4,.52,.74).normalize();r.arms[1].quaternion.setFromUnitVectors(handDown,toMouth)}else if(r.jaw)r.jaw.rotation.x=.5+Math.sin(tw*2.2)*.1;r.head.rotation.y=sway;r.head.rotation.z=Math.sin(tw*.7)*.035;if(snack.key==='juice'){const sip=(Math.sin(tw*2.6)+1)*.5;r.head.rotation.x=.08+sip*.12;if(snack.food)snack.food.position.y=snack.baseY+(r.arms?sip*.02:-sip*.015)}else r.head.rotation.x=Math.sin(tw*1.2)*.04}
 function spawnHeart(who){const r=rigOf(who);if(!r||!r.body)return;const h=makeHeart(),y={boy:2.05,girl:2.15,dog:1.28,cat:1.08}[who]||1.1,x=(Math.random()-.5)*.35,z=(Math.random()-.5)*.2,sc=who==='dog'||who==='cat'?.16:.26;h.position.set(x,y,z);h.scale.set(sc,sc,1);h.userData={age:0,x,y,z,ph:Math.random()*6.28,drift:(Math.random()-.5)*.22,lift:.1+Math.random()*.08};r.body.add(h);hearts.push(h)}
 const popAim=new T.Vector3(),popFace=new T.Vector3(0,-.02,1),popX=new T.Vector3(),popZ=new T.Vector3(),popM=new T.Matrix4(),popQ=new T.Quaternion(),popInv=new T.Quaternion();
-function holdPose(){if(ride||lying||snack)return;for(const key of ['pop','fluff']){const who=wearOn[key];if(who!=='boy'&&who!=='girl')continue;const arm=holdArm(who,key);if(!arm)continue;const side=arm.position.x>=0?1:-1;const bob=Math.sin(tw*2.2+(key==='fluff'?1:0))*.04;if(key==='pop'){arm.rotation.set(-1.8+bob,0,side*.2);arm.quaternion.setFromEuler(arm.rotation,false);const pop=wearMesh.get('pop');if(!pop)continue;pop.position.set(0,who==='girl'?-.34:-.36,.04);popAim.set(side*.06,.57,.82).normalize();popX.crossVectors(popAim,popFace);if(popX.lengthSq()<1e-6)popX.set(1,0,0);popX.normalize();popZ.crossVectors(popX,popAim).normalize();popM.makeBasis(popX,popAim,popZ);popQ.setFromRotationMatrix(popM);popInv.copy(arm.quaternion).invert();pop.quaternion.copy(popInv).multiply(popQ)}else{arm.rotation.set(-2.2+bob,0,side*.62)}}}
+function holdPose(){if(ride||lying||snack)return;for(const key of ['pop','fluff']){const who=wearOn[key];if(who!=='boy'&&who!=='girl')continue;const arm=holdArm(who,key);if(!arm)continue;const side=arm.position.x>=0?1:-1;const bob=Math.sin(tw*2.2+(key==='fluff'?1:0))*.04;if(key==='pop'){arm.rotation.set(-1.8+bob,0,side*1.05);arm.quaternion.setFromEuler(arm.rotation,false);const pop=wearMesh.get('pop');if(!pop)continue;pop.position.set(0,who==='girl'?-.34:-.36,.04);popAim.set(side*.28,.8,.5).normalize();popX.crossVectors(popAim,popFace);if(popX.lengthSq()<1e-6)popX.set(1,0,0);popX.normalize();popZ.crossVectors(popX,popAim).normalize();popM.makeBasis(popX,popAim,popZ);popQ.setFromRotationMatrix(popM);popInv.copy(arm.quaternion).invert();pop.quaternion.copy(popInv).multiply(popQ)}else{arm.rotation.set(-2.2+bob,0,side*.62)}}}
 function spinPop(){const pop=wearMesh.get('pop');if(pop&&pop.userData.spin)pop.userData.spin.rotation.z=tw*4}
 function itemTick(dt){if(!boy)return;liePose();holdPose();spinPop();
  if(snack){if(ride){endSnack();return}snack.t+=dt;if(snack.q)world.quaternion.slerp(snack.q,Math.min(1,dt*3.4));if(snack.who==='boy'){const face=Math.atan2(dir.x,dir.z);yaw+=Math.atan2(Math.sin(face-yaw),Math.cos(face-yaw))*Math.min(1,dt*4);boy.rotation.y=yaw}eatPose();if(snack.t>=snack.next&&snack.t<10){snack.next+=1;spawnHeart(snack.who)}if(snack.t>=10)endSnack()}
