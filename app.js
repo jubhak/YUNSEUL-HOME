@@ -396,30 +396,49 @@ function buildSpots(){
 }
 /* 미끄럼은 미끄럼 반대편 사다리에서 미끄럼 쪽을 보며 올라간다. 그네는 줄을 잡고 움직이기 전까지 탄다 */
 function courseOf(parent,x){
- const blue=M(0x4aa3ff),yellow=M(0xffe14a),pink=M(0xff8ec8),coral=M(0xff6b8a),white=M(0xfff7fb),mint=M(0x5ce1c5);
- [-.28,.28].forEach(s=>mk(new T.BoxGeometry(.09,1.5,.09),blue,x+s,.75,-.62,parent));
- for(let i=0;i<4;i++)mk(new T.BoxGeometry(.58,.08,.08),i%2?yellow:pink,x,.32+i*.3,-.62,parent);
- mk(new T.BoxGeometry(.86,.1,.62),pink,x,1.48,-.28,parent);
- [-.36,.36].forEach(s=>mk(new T.BoxGeometry(.09,1.48,.09),blue,x+s,.74,-.22,parent));
- const chute=new T.Group();chute.position.set(x,.735,.515);chute.rotation.x=.83;parent.add(chute);
- mk(new T.BoxGeometry(.72,.08,1.586),yellow,0,0,0,chute);
- mk(new T.BoxGeometry(.08,.26,1.586),coral,-.36,.12,0,chute);
- mk(new T.BoxGeometry(.08,.26,1.586),coral,.36,.12,0,chute);
- mk(new T.BoxGeometry(.72,.04,.22),white,0,.05,.55,chute);
- mk(new T.BoxGeometry(.8,.08,.22),mint,x,.08,1.12,parent);
- const steps=[.36,.66,.96,1.26].map(y=>new T.Vector3(x,y,-.62));
- steps.push(new T.Vector3(x,1.53,-.28));
- parent.userData.foot=new T.Vector3(x,.06,-1.28);
- parent.userData.steps=steps;
- parent.userData.top=steps[steps.length-1];
- parent.userData.exit=new T.Vector3(x,.2,1.05);
- parent.userData.land=new T.Vector3(x,.02,1.18);
+ const blue=M(0x91c8ff),pink=M(0xffa8cd),cream=M(0xfff3ce),mint=M(0x8ce5cf),gold=M(0xffd879);
+ const ground=z=>Math.sqrt(Math.max(.01,R*R-z*z))-R+.03;
+ const rail=(points,material,r=.045)=>mk(new T.TubeGeometry(new T.CatmullRomCurve3(points),64,r,10,false),material,0,0,0,parent);
+ const H=2.7,steps=[];
+ for(let i=0;i<8;i++){
+  const y=.30+i*.30,z=-1.35+i*.13;
+  mk(new T.BoxGeometry(1.22,.09,.25),i%2?mint:cream,x,y-.045,z,parent);
+  steps.push(new T.Vector3(x,y+.045,z));
+ }
+ steps.push(new T.Vector3(x,H+.05,-.15));
+ [-.70,.70].forEach(side=>{
+  rail([new T.Vector3(x+side,ground(-1.55),-1.55),new T.Vector3(x+side,.85,-1.48),new T.Vector3(x+side,H+.74,-.15),new T.Vector3(x+side,H+.74,.28)],blue,.065);
+  const bottom=ground(-.15);
+  mk(new T.CylinderGeometry(.065,.085,H-bottom,12),blue,x+side,(H+bottom)/2,-.15,parent);
+  mk(new T.SphereGeometry(.13,16,12),pink,x+side,H+.77,.26,parent);
+ });
+ mk(new T.BoxGeometry(1.46,.12,.72),pink,x,H-.03,-.15,parent);
+ const curve=new T.CubicBezierCurve3(new T.Vector3(x,H,.20),new T.Vector3(x,H,1.20),new T.Vector3(x,ground(3.1)+.14,1.65),new T.Vector3(x,ground(3.1)+.14,3.1));
+ // The visible bed, safety rails and rider all sample this exact curve.
+ const vertices=[],indices=[],N=96,W=.64;
+ for(let i=0;i<=N;i++){const v=curve.getPoint(i/N);vertices.push(v.x-W,v.y,v.z,v.x+W,v.y,v.z);if(i<N){const k=i*2;indices.push(k,k+2,k+1,k+1,k+2,k+3)}}
+ const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();
+ mk(geo,M(0xffe9a8,{side:T.DoubleSide,roughness:.45}),0,0,0,parent);
+ [-W,W].forEach(side=>{const pts=[];for(let i=0;i<=N;i++){const v=curve.getPoint(i/N);v.x+=side;v.y+=.17;pts.push(v)}rail(pts,pink,.105)});
+ // Rounded cloud cheeks and a little heart make the entrance friendly.
+ [-1,1].forEach(side=>{
+  const cloud=new T.Group();cloud.position.set(x+side*.87,H+.35,-.09);parent.add(cloud);
+  [-.13,0,.13].forEach((dx,i)=>mk(new T.SphereGeometry(i===1?.19:.14,16,12),cream,dx,i===1?.04:0,0,cloud));
+  [-.065,.065].forEach(dx=>mk(new T.SphereGeometry(.018,8,6),M(0x695464),dx,.025,.155,cloud));
+  mk(new T.SphereGeometry(.034,10,8),pink,side*.1,-.035,.14,cloud).scale.z=.35;
+ });
+ const heart=mk(new T.ExtrudeGeometry(heartShape(.13),{depth:.04,bevelEnabled:false}),pink,x,H+.85,-.1,parent);heart.rotation.y=Math.PI;
+ const footZ=-2.40,landZ=4.10;
+ parent.userData.foot=new T.Vector3(x,ground(footZ)+.05,footZ);
+ parent.userData.steps=steps;parent.userData.top=steps[steps.length-1];
+ parent.userData.slideCurve=curve;parent.userData.exit=curve.getPoint(1);
+ parent.userData.land=new T.Vector3(x,ground(landZ)+.04,landZ);
 }
 function buildRides(){
  const post=M(0x5b7cfa),top=M(0xffe14a),ball=M(0xff5d8f),rope=M(0xfff6ea),seat=M(0x7d5cff),end=M(0xff8ec8),foot=M(0x5ce1c5);
  const g=new T.Group();
  courseOf(g,0);
- place(g,nrm(.62,-2.15),-155*Math.PI/180);g.userData.ride='slide';
+ place(g,nrm(.62,-2.72),-155*Math.PI/180);g.userData.ride='slide';
  g.userData.stand=g.userData.foot.clone().applyQuaternion(g.quaternion).add(g.position).normalize();
  rides.push(g);
  const w=new T.Group();
@@ -432,18 +451,27 @@ function buildRides(){
  mk(new T.BoxGeometry(.08,.22,.46),end,-.58,-2.2,0,pivot);
  mk(new T.BoxGeometry(.08,.22,.46),end,.58,-2.2,0,pivot);
  place(w,nrm(1.5,-2.2));w.userData.ride='swing';w.userData.pivot=pivot;
- w.userData.front=new T.Vector3(0,.02,.72);
+ w.userData.front=new T.Vector3(0,.02,1.65);
  w.userData.stand=w.userData.front.clone().applyQuaternion(w.quaternion).add(w.position).normalize();
  rides.push(w);
  window.rideN=[g.userData.n,g.userData.stand,w.userData.n,w.userData.stand];
  EX.push({n:g.userData.n.clone(),r:.34},{n:w.userData.n.clone(),r:.4});
 }
+function clearOfRides(n,padding=.3){
+ for(const ride of rides){
+  const p=n.clone().multiplyScalar(R).sub(ride.position).applyQuaternion(ride.quaternion.clone().invert());
+  if(n.dot(ride.userData.n)<.5)continue;
+  if(ride.userData.ride==='slide'&&Math.abs(p.x)<.98+padding&&p.z>-2.5-padding&&p.z<4.35+padding)return false;
+  if(ride.userData.ride==='swing'&&Math.abs(p.x)<1.55+padding&&Math.abs(p.z)<1.5+padding)return false;
+ }
+ return true;
+}
 function buildProps(){
  let sd=11;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
  const gT=new T.CylinderGeometry(.07,.1,.5,6),gC=new T.ConeGeometry(.45,.9,8),gS=new T.IcosahedronGeometry(.5,1),gF=new T.SphereGeometry(.09,8,6),gR=new T.DodecahedronGeometry(.3,0),gL=new T.ConeGeometry(.13,1,4),gP=new T.CylinderGeometry(.06,.1,1.5,6),gU=new T.ConeGeometry(.9,.4,10);
  const trunk=M(0x8a5a3a),pine=M(0x3f9d5a),leaf=M(0x6bcf63),rock=M(0xa9b0b5,{flatShading:true}),stem=M(0x3f9a45),red=M(0xff5a5f),white=M(0xffffff),used=window.propN=(window.rideN||[]).map(v=>{const c=v.clone();c.ride=1;return c});
- const free=(n,m)=>n.angleTo(TOP)>.4&&spotObjs.every(s=>s.userData.n.angleTo(n)>(s.userData.spot==='board'?Math.max(m,.78):m))&&used.every(u=>u.angleTo(n)>(u.ride?0.7:0.16))&&(window.clearN||[]).every(c=>n.angleTo(c.n)>(c.pad||.7));
- const spawn=(cnt,fn,m)=>{for(let i=0,k=0;i<cnt&&k<800;k++){const n=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(!free(n,m))continue;used.push(n);const g=new T.Group();fn(g);g.scale.setScalar(.9+rnd()*.35);place(g,n,rnd()*6.28);i++}};
+ const free=(n,m)=>clearOfRides(n,.65)&&n.angleTo(TOP)>.4&&spotObjs.every(s=>s.userData.n.angleTo(n)>(s.userData.spot==='board'?Math.max(m,.78):m))&&used.every(u=>u.angleTo(n)>(u.ride?0.7:0.16))&&(window.clearN||[]).every(c=>n.angleTo(c.n)>(c.pad||.7));
+ const spawn=(cnt,fn,m)=>{for(let i=0,k=0;i<cnt&&k<800;k++){const n=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(!free(n,m))continue;n.solid=.34;used.push(n);const g=new T.Group();fn(g);g.scale.setScalar(.9+rnd()*.35);place(g,n,rnd()*6.28);i++}};
  spawn(10,g=>{mk(gT,trunk,0,.25,0,g);mk(gC,pine,0,.8,0,g);mk(gC,pine,0,1.15,0,g).scale.setScalar(.75)},.55);
  spawn(8,g=>{mk(gT,trunk,0,.25,0,g);mk(gS,leaf,0,.85,0,g)},.55);
  spawn(9,g=>{const t=mk(gP,trunk,0,.75,0,g);t.rotation.z=.12;for(let i=0;i<6;i++){const a=new T.Group();a.rotation.y=i*1.047;const l=mk(gL,leaf,.45,1.55,0,a);l.rotation.z=-Math.PI/2-.45;l.scale.z=.3;g.add(a)}},.6);
@@ -470,7 +498,7 @@ function buildProps(){
  used.forEach((u,i)=>{if(u.ride)u.pad=ridePad[i]||.4});
  flowerN=[];flowerSway.length=0;
  function canPlant(n,gap){
-  if(n.y>.99)return false;
+  if(n.y>.99||!clearOfRides(n,.32))return false;
   for(const s of spotObjs){const sp=s.userData.spot,pad=sp==='board'?.36:sp==='shop'?.52:sp==='mail'?.24:.3;if(s.userData.n.angleTo(n)<pad)return false}
   for(const u of used)if(u.angleTo(n)<(u.ride?u.pad:gap))return false;
   for(const h of homes)if(h.angleTo(n)<.18)return false;
@@ -537,16 +565,16 @@ function makeHeartShades(){const g=new T.Group(),red=M(0xff2438,{roughness:.3}),
 function makeFaceBook(){
  const g=new T.Group(),cover=M(0x3a6fd8,{roughness:.5}),page=M(0xfff8ee,{roughness:.85}),ink=M(0x718398),gold=M(0xffcf72);
  g.name='open-face-magazine';
- // Two wide, almost-flat pages, joined at the spine and resting over the face.
+ // A shallow inverted V: raised spine, gently folded leaves resting over the face.
  [-1,1].forEach(side=>{
-  const leaf=new T.Group();leaf.position.set(0,.02,.72);leaf.rotation.y=side*.08;g.add(leaf);
+  const leaf=new T.Group();leaf.position.set(0,.02,.86);leaf.rotation.y=side*.43;g.add(leaf);
   mk(new T.BoxGeometry(.76,1.02,.025),cover,side*.38,0,0,leaf);
   mk(new T.BoxGeometry(.72,.97,.012),page,side*.38,0,.02,leaf);
   mk(new T.BoxGeometry(.59,.19,.008),gold,side*.38,.29,.031,leaf);
   mk(new T.BoxGeometry(.27,.25,.008),cover,side*.52,.01,.031,leaf);
   for(let i=0;i<6;i++)mk(new T.BoxGeometry(i<3?.25:.59,.016,.008),ink,side*(i<3?.22:.38),.10-i*.085,.032,leaf);
  });
- mk(new T.BoxGeometry(.025,1.02,.03),cover,0,.02,.72,g);
+ mk(new T.CylinderGeometry(.022,.022,1.02,10),cover,0,.02,.86,g);
  g.traverse(o=>{o.castShadow=o.receiveShadow=false});g.visible=false;return g;
 }
 function buildBoy(){
@@ -680,7 +708,7 @@ cv.addEventListener('pointerup',e=>{if(rot&&e.pointerId===rot.id){rot=null;retur
  if(o.userData.towel){goTowel(o);return}
  if(o.userData.ride){if(!(ride&&ride.kind==='swing')){goRide(o);return}}
  if(ride){if(ride.kind==='swing'&&o===planet){const n=world.worldToLocal(hit.point.clone()).normalize();ride.after={n,reach:.04};rideOff();ring(n)}return}
- if(o===planet){const n=world.worldToLocal(hit.point.clone()).normalize();let towel=null,best=.42;for(const g of placeMeshes){if(!g.userData.towel||!g.userData.n)continue;const a=n.angleTo(g.userData.n);if(a<best){best=a;towel=g}}if(towel&&!(ride&&ride.kind==='slide')){goTowel(towel);return}stopLie();auto={n,reach:.04};ring(n)}
+ if(o===planet){const n=world.worldToLocal(hit.point.clone()).normalize();let towel=null,best=.42;for(const g of placeMeshes){if(!g.userData.towel||!g.userData.n)continue;const a=n.angleTo(g.userData.n);if(a<best){best=a;towel=g}}if(towel&&!(ride&&ride.kind==='slide')){goTowel(towel);return}stopLie();const goal=safeWalkGoal(n,.72,TOP.clone().applyQuaternion(world.quaternion.clone().invert()));if(goal){auto={n:goal,reach:.04};ring(goal)}}
  else auto={n:o.userData.n,reach:SPOTS[o.userData.spot].reach,spot:o.userData.spot}});
 const gPuff=new T.SphereGeometry(1,10,8);
 function puff(){const o=new T.Mesh(gPuff,new T.MeshBasicMaterial({color:0xfff6e0,transparent:true,opacity:.55,depthWrite:false}));o.position.copy(world.worldToLocal(new T.Vector3((Math.random()-.5)*.3,R+.06,(Math.random()-.5)*.3)));o.scale.setScalar(.08);o.userData={a:0,life:.6};world.add(o);fx.push(o)}
@@ -867,6 +895,112 @@ function seaUpdate(dt){const c=cur.ct;
   p.s.position.set(p.x,p.y,0);p.s.scale.setScalar(p.sz*(1+r*.6));p.s.material.opacity=p.op*(1-r*r)}}
 
 /* ===== AI 친구들 (여자아이 · 강아지) ===== */
+/* ===== Shared spherical navigation: all four walkers respect solid footprints. ===== */
+const solidFootprints=[],navCache=new Map();
+let navGrid=null;
+const boyNav={};
+function addFootprint(object,hx,hz,cx=0,cz=0,round=false){
+ // Matrices here are globe-local. Camera/globe rotation must not rotate collision data twice.
+ object.updateMatrix();const matrix=object.matrix.clone();let parent=object.parent;
+ while(parent&&parent!==world){parent.updateMatrix();matrix.premultiply(parent.matrix);parent=parent.parent}
+ const center=new T.Vector3(cx,0,cz).applyMatrix4(matrix),normal=center.clone().normalize();
+ const inverse=matrix.clone().invert();
+ solidFootprints.push({center,normal,inverse,hx,hz,cx,cz,round,scale:new T.Vector3().setFromMatrixScale(matrix).x});
+}
+function buildNavigation(){
+ solidFootprints.length=0;navCache.clear();navGrid=null;
+ for(const o of spotObjs){const kind=o.userData.spot;addFootprint(o,kind==='shop'?1.8:kind==='board'?1.18:.48,0,0,0,true)}
+ for(const o of rides){if(o.userData.ride==='slide')addFootprint(o,.98,2.43,0,.88);else addFootprint(o,1.42,.50)}
+ bedRoot.userData.beds.forEach(b=>addFootprint(b,.50,1.18,0,.15));
+ addFootprint(bedRoot,.40,.40,0,.15);
+ addFootprint(teaRoot,1.58,0,0,0,true);
+ teaRoot.userData.chairs.forEach(c=>addFootprint(c,.76,.83,0,-.08));
+ // Only trunks, rocks and parasol poles are solid: flowers and ride reservation points are not walls.
+ for(const n of (window.propN||[]))if(n.solid){const o=new T.Object3D();o.position.copy(n).multiplyScalar(R);o.quaternion.setFromUnitVectors(TOP,n);o.updateMatrix();addFootprint(o,n.solid,0,0,0,true)}
+ // A chair's rear may face a neighbouring facility. Move only its invisible
+ // approach marker to a legal ground point; never disable that facility's collider.
+ for(const c of [...teaRoot.userData.chairs,...bedRoot.userData.beds]){const approach=c.userData.approach||c.userData.foot,goal=safeWalkGoal(meshN(approach),.80,meshN(c));if(goal){const p=world.localToWorld(goal.multiplyScalar(R));c.worldToLocal(p);approach.position.copy(p)}}
+ const start=TOP.clone().applyQuaternion(world.quaternion.clone().invert()),safe=safeWalkGoal(start,.72);if(safe)alignUp(safe);
+}
+function walkRadius(c){return c===npcs.cat?.70:c===npcs.dog?.90:.72}
+function isWalkable(n,radius=.72){
+ const p=new T.Vector3().copy(n).multiplyScalar(R),local=new T.Vector3();
+ for(const b of solidFootprints){
+  if(n.dot(b.normal)<.55)continue;
+  local.copy(p).applyMatrix4(b.inverse);const x=Math.abs(local.x-b.cx),z=Math.abs(local.z-b.cz),r=radius/b.scale;
+  if(b.round){if(x*x+z*z<(b.hx+r)*(b.hx+r))return false}
+  else{const dx=Math.max(0,x-b.hx),dz=Math.max(0,z-b.hz);if(dx*dx+dz*dz<r*r)return false}
+ }
+ return true;
+}
+function walkSegment(a,b,radius){
+ const angle=a.angleTo(b),count=Math.max(1,Math.ceil(angle/.025)),p=new T.Vector3();
+ for(let i=1;i<=count;i++){p.copy(a).lerp(b,i/count).normalize();if(!isWalkable(p,radius))return false}
+ return true;
+}
+function safeWalkGoal(goal,radius,from=goal){
+ if(isWalkable(goal,radius))return goal.clone();
+ const tangent=new T.Vector3().crossVectors(goal,Math.abs(goal.y)<.9?TOP:new T.Vector3(1,0,0)).normalize(),side=new T.Vector3().crossVectors(goal,tangent),candidate=new T.Vector3();
+ for(let angle=.035;angle<1.2;angle+=.035){let best=null,score=Infinity;
+  for(let i=0;i<24;i++){const t=i*Math.PI/12;candidate.copy(goal).multiplyScalar(Math.cos(angle)).addScaledVector(tangent,Math.sin(angle)*Math.cos(t)).addScaledVector(side,Math.sin(angle)*Math.sin(t));if(!isWalkable(candidate,radius+.025))continue;const cost=candidate.angleTo(from);if(cost<score){score=cost;best=candidate.clone()}}
+  if(best)return best;
+ }
+ return null;
+}
+function navigationGrid(radius){
+ if(!navGrid){navGrid=[];const rows=42,cols=84;
+  for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const lat=Math.PI*(row+.5)/rows,lon=col*Math.PI*2/cols,n=new T.Vector3(Math.sin(lat)*Math.cos(lon),Math.cos(lat),Math.sin(lat)*Math.sin(lon)),neighbors=[];
+   for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const rr=row+dr;if(rr<0||rr>=rows)continue;neighbors.push(rr*cols+(col+dc+cols)%cols)}navGrid.push({n,neighbors})}
+ }
+ const key=radius.toFixed(3);if(!navCache.has(key))navCache.set(key,navGrid.map(node=>isWalkable(node.n,radius+.025)));
+ return navCache.get(key);
+}
+function planWalkPath(start,goal,radius){
+ const clear=navigationGrid(radius),nodes=navGrid,N=nodes.length;
+ const nearest=n=>nodes.map((node,i)=>({i,d:node.n.angleTo(n)})).filter(x=>clear[x.i]).sort((a,b)=>a.d-b.d).slice(0,64).filter(x=>walkSegment(n,nodes[x.i].n,radius+.015));
+ const starts=nearest(start),ends=nearest(goal);if(!starts.length||!ends.length)return [];
+ const endMap=new Map(ends.map(x=>[x.i,x.d])),cost=new Float64Array(N).fill(Infinity),previous=new Int32Array(N).fill(-1),closed=new Uint8Array(N),open=[];
+ for(const x of starts){cost[x.i]=x.d;open.push(x.i)}
+ let finish=-1;
+ while(open.length){let at=0,best=Infinity;for(let k=0;k<open.length;k++){const i=open[k],score=cost[i]+nodes[i].n.angleTo(goal);if(score<best){best=score;at=k}}
+  const i=open.splice(at,1)[0];if(closed[i])continue;closed[i]=1;
+  if(endMap.has(i)){finish=i;break}
+  for(const j of nodes[i].neighbors){if(closed[j]||!clear[j])continue;const d=cost[i]+nodes[i].n.angleTo(nodes[j].n);if(d>=cost[j]||!walkSegment(nodes[i].n,nodes[j].n,radius+.025))continue;cost[j]=d;previous[j]=i;open.push(j)}
+ }
+ if(finish<0)return [];
+ const path=[goal.clone()];for(let i=finish;i>=0;i=previous[i])path.unshift(nodes[i].n.clone());
+ return path;
+}
+function walkTarget(state,start,target,radius){
+ if(!state.nav||state.nav.target.angleTo(target)>.13){
+  const goal=safeWalkGoal(target,radius,start);state.nav={target:target.clone(),goal,path:null,retry:0};
+ }
+ const nav=state.nav;if(!nav.goal)return start;
+ if(walkSegment(start,nav.goal,radius+.015))return nav.goal;
+ if((!nav.path||!nav.path.length)&&tw>=nav.retry){nav.path=planWalkPath(start,nav.goal,radius);nav.retry=tw+1}
+ if(!nav.path||!nav.path.length)return start;
+ while(nav.path.length>1&&(start.angleTo(nav.path[0])<.045||walkSegment(start,nav.path[1],radius+.015)))nav.path.shift();
+ return nav.path[0];
+}
+function moveWalker(c,next){
+ const radius=walkRadius(c),old=c.n.clone();
+ if(walkSegment(old,next,radius)){c.n.copy(next);return true}
+ // On keyboard input or a steering overshoot, slide along a free edge instead of tunnelling.
+ let best=null,score=Infinity;
+ for(const turn of [.35,-.35,.7,-.7,1.1,-1.1,1.5,-1.5]){
+  const trial=next.clone().applyAxisAngle(old,turn);if(!walkSegment(old,trial,radius))continue;
+  const d=trial.angleTo(next);if(d<score){best=trial;score=d}
+ }
+ if(best){c.n.copy(best);return true}return false;
+}
+function guardNpc(c){
+ if(c.pose==='sit'||c.pose==='lie')return;
+ const radius=walkRadius(c);
+ if(c.safeN){const next=c.n.clone();c.n.copy(c.safeN);moveWalker(c,next)}
+ else if(!isWalkable(c.n,radius)){const safe=safeWalkGoal(c.n,radius);if(safe)c.n.copy(safe)}
+ c.safeN=c.n.clone();c.f.addScaledVector(c.n,-c.f.dot(c.n)).normalize();
+}
+
 const npcs={},vA=new T.Vector3(),vB=new T.Vector3(),vC=new T.Vector3(),vP=new T.Vector3(),catAim=new T.Vector3(),qI=new T.Quaternion();
 const rv=()=>new T.Vector3(rnd2()-.5,rnd2()-.5,rnd2()-.5).normalize();
 function randNear(c,a0,a1){const t=rv();t.addScaledVector(c,-t.dot(c)).normalize();const a=a0+rnd2()*(a1-a0);return c.clone().multiplyScalar(Math.cos(a)).addScaledVector(t,Math.sin(a))}
@@ -895,14 +1029,22 @@ function buildDog(){
  const g=new T.Group(),R2={roughness:.95},fur=M(0xd9a05b,R2),dkf=M(0xb67a3c,R2),cream=M(0xf6dcae,R2),ear=M(0x8f5a2c,R2),dk=new T.MeshBasicMaterial({color:0x120d0b}),nose=M(0x1a1412,{roughness:.3}),wh=new T.MeshBasicMaterial({color:0xffffff}),br=new T.MeshBasicMaterial({color:0x4a2a14}),body=new T.Group();g.add(body);
  mk(new T.SphereGeometry(.3,22,16),fur,0,.46,-.02,body).scale.set(1,.92,1.75);mk(new T.SphereGeometry(.26,18,14),dkf,0,.54,-.06,body).scale.set(.95,.65,1.6);mk(new T.SphereGeometry(.24,16,12),cream,0,.4,.3,body).scale.set(.95,1,.9);
  mk(new T.CylinderGeometry(.14,.2,.3,12),fur,0,.62,.4,body).rotation.x=.5;
- const head=new T.Group();head.position.set(0,.76,.52);body.add(head);
+ const head=new T.Group();head.position.set(0,.76,.52);head.scale.setScalar(1.18);body.add(head);
  mk(new T.SphereGeometry(.22,24,18),fur,0,0,0,head);mk(new T.SphereGeometry(.12,16,12),cream,0,-.06,.2,head).scale.set(.95,.8,1.5);mk(new T.SphereGeometry(.05,12,10),nose,0,-.01,.36,head).scale.set(1.2,.9,.9);
  const jaw=new T.Group();jaw.position.set(0,-.12,.12);head.add(jaw);mk(new T.SphereGeometry(.085,12,10),cream,0,-.02,.1,jaw).scale.set(1,.5,1.4);
- const tongue=mk(new T.SphereGeometry(.05,10,8),M(0xff7d92),0,-.04,.12,jaw);tongue.scale.set(.9,.3,.02);tongue.castShadow=false;
- [-1,1].forEach(s=>{mk(new T.SphereGeometry(.045,10,8),br,s*.1,.07,.18,head);mk(new T.SphereGeometry(.015,6,6),wh,s*.1+.012,.09,.215,head);mk(new T.SphereGeometry(.03,8,6),cream,s*.1,.14,.17,head).scale.set(1.4,.5,.6);
+ const tongue=mk(new T.SphereGeometry(.05,10,8),M(0xff7d92),0,-.04,.12,jaw);tongue.scale.set(.9,.3,1.1);tongue.castShadow=false;
+ [-1,1].forEach(s=>{mk(new T.SphereGeometry(.050,14,12),br,s*.1,.07,.188,head);mk(new T.SphereGeometry(.031,12,10),dk,s*.1,.068,.220,head);mk(new T.SphereGeometry(.015,6,6),wh,s*.1+.012,.09,.215,head);mk(new T.SphereGeometry(.03,8,6),cream,s*.1,.14,.17,head).scale.set(1.4,.5,.6);
   const e=mk(new T.SphereGeometry(.15,12,10),ear,s*.2,.04,-.02,head);e.scale.set(.35,.8,.55);e.rotation.z=-s*.5;e.position.y=-.02});
  const legs=[];
  [[-1,1],[1,1],[-1,-1],[1,-1]].forEach(([sx2,sz])=>{const l=new T.Group();l.position.set(sx2*.17,.38,sz*.34);mk(new T.CylinderGeometry(.075,.065,.3,10),fur,0,-.15,0,l);mk(new T.SphereGeometry(.085,10,8),cream,0,-.33,.03,l).scale.set(1,.7,1.3);body.add(l);legs.push(l)});
+ // Soft muzzle cheeks, brows and a mint collar distinguish the floppy-eared puppy.
+ [-1,1].forEach(side=>{
+  mk(new T.SphereGeometry(.074,14,10),cream,side*.065,-.075,.225,head).scale.set(1,.65,.8);
+  mk(new T.SphereGeometry(.022,10,8),M(0xf2a4a0),side*.15,-.025,.16,head).scale.set(1.7,.6,.4);
+  for(let i=0;i<3;i++)mk(new T.SphereGeometry(.008,6,6),ear,side*(.045+i*.014),-.073,.285,head);
+ });
+ const collar=mk(new T.TorusGeometry(.145,.026,8,24),M(0x81dcca),0,.64,.42,body);collar.rotation.x=Math.PI/2;
+ mk(new T.SphereGeometry(.047,12,10),M(0xffd46d,{metalness:.2,roughness:.4}),0,.55,.51,body);
  const tail=new T.Group();tail.position.set(0,.58,-.56);const tc=mk(new T.ConeGeometry(.075,.5,8),dkf,0,.2,0,tail);mk(new T.SphereGeometry(.07,8,6),cream,0,.44,0,tail).scale.set(1,1.5,1);tail.rotation.x=-.9;body.add(tail);
  g.scale.setScalar(1);world.add(g);return{o:g,legs,tail,head,body,jaw,tongue}}
 function buildCat(){
@@ -914,19 +1056,25 @@ function buildCat(){
  mk(new T.SphereGeometry(.15,14,12),cream,0,.22,.14,body).scale.set(.8,.5,.85);
  mk(new T.SphereGeometry(.16,14,12),fur,0,.32,-.2,body).scale.set(.95,.78,.8);
  mk(new T.SphereGeometry(.05,8,6),dk,0,.4,.04,body).scale.set(.45,.18,.75);mk(new T.SphereGeometry(.04,8,6),dk,0,.38,-.1,body).scale.set(.4,.16,.55);
- const head=new T.Group();head.position.set(0,.44,.28);body.add(head);
+ const head=new T.Group();head.position.set(0,.46,.28);head.scale.setScalar(1.22);body.add(head);
  const hd=mk(new T.SphereGeometry(.175,24,18),fur,0,.02,0,head);hd.scale.set(1.12,.98,.9);
  mk(new T.SphereGeometry(.07,12,10),cream,0,-.045,.12,head).scale.set(1.05,.62,.55);
  mk(new T.SphereGeometry(.028,8,6),nose,0,-.02,.165,head).scale.set(1.15,.7,.65);
  mk(new T.BoxGeometry(.016,.04,.012),dk,-.02,.09,.15,head).rotation.z=.5;
  mk(new T.BoxGeometry(.016,.04,.012),dk,.02,.09,.15,head).rotation.z=-.5;
  [-1,1].forEach(s=>{
-  const e=mk(new T.ConeGeometry(.09,.3,4),fur,s*.11,.16,-.04,head);e.rotation.z=s*.5;e.rotation.x=-.35;
-  const ei=mk(new T.ConeGeometry(.048,.16,4),earIn,s*.11,.16,-.005,head);ei.rotation.z=s*.5;ei.rotation.x=-.35;
-  mk(new T.SphereGeometry(.048,12,10),eye,s*.072,.015,.15,head).scale.set(.95,1.15,.6);
-  mk(new T.SphereGeometry(.015,6,6),pup,s*.072,.015,.18,head).scale.set(.42,1.5,.35);
+  const e=mk(new T.ConeGeometry(.09,.3,4),fur,s*.12,.16,-.04,head);e.scale.set(1,.74,1);e.rotation.z=s*.28;e.rotation.x=-.18;
+  const ei=mk(new T.ConeGeometry(.048,.16,4),earIn,s*.12,.16,-.005,head);ei.scale.set(1,.74,1);ei.rotation.z=s*.28;ei.rotation.x=-.18;
+  mk(new T.SphereGeometry(.054,16,12),eye,s*.072,.015,.15,head).scale.set(.95,1.15,.6);
+  mk(new T.SphereGeometry(.015,6,6),pup,s*.072,.015,.18,head).scale.set(.85,1.65,.4);
   mk(new T.SphereGeometry(.01,6,6),hi,s*.055,.04,.175,head);
   for(let i=-1;i<=1;i++){const w=mk(new T.BoxGeometry(.13,.007,.007),hi,s*.16,-.03+i*.018,.11,head);w.rotation.y=-s*i*.35}
+ });
+ [-1,1].forEach(side=>{
+  mk(new T.SphereGeometry(.043,12,10),cream,side*.04,-.05,.145,head).scale.set(1,.65,.6);
+  mk(new T.SphereGeometry(.024,10,8),earIn,side*.12,-.045,.125,head).scale.set(1.5,.5,.3);
+  const smile=mk(new T.TorusGeometry(.022,.005,6,12,Math.PI),pup,side*.022,-.045,.174,head);smile.rotation.z=Math.PI;
+  for(let i=0;i<2;i++){const stripe=mk(new T.SphereGeometry(.025,10,8),dk,side*.155,.03-i*.052,.07,head);stripe.scale.set(.35,.4,1.45);stripe.rotation.y=side*.35}
  });
  const legs=[];[[-1,1],[1,1],[-1,-1],[1,-1]].forEach(([sx2,sz])=>{const l=new T.Group();l.position.set(sx2*.09,.2,sz*.15);mk(new T.CylinderGeometry(.032,.028,.13,8),fur,0,-.05,0,l);mk(new T.SphereGeometry(.04,8,6),cream,0,-.125,.012,l).scale.set(1.15,.5,1.2);body.add(l);legs.push(l)});
  const tail=new T.Group();tail.position.set(0,.34,-.32);
@@ -943,17 +1091,15 @@ function dogNext(d,g){const r=rnd2();d.barks=0;d.bt=.25;d.meow=false;d.od=rnd2()
 function buildNpcs(){
  const mkc=(rig,n,x)=>{const t=rv();const f=t.addScaledVector(n,-t.dot(n)).normalize();return Object.assign({o:rig.o,rig,n:n.clone().normalize(),f,mv:0,walk:0,sp:0,wave:false,t:6,stT:3,st:'orbit',od:1,orb:.36,barks:0,bt:0,barkP:0,sit:0,lay:0,tg:null},x)};
  npcs.girl=mkc(buildGirl(),nrm(.62,-1.2),{orb:.42});npcs.dog=mkc(buildDog(),nrm(.7,-1.0),{orb:.3,turn:.6});npcs.cat=mkc(buildCat(),nrm(.9,-.3),{hop:0,bi:0,ct:3,mode:'bf',actT:6+rnd2()*6,lk:0});
- [npcs.girl,npcs.dog,npcs.cat].forEach(c=>{basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R)});
+ [npcs.girl,npcs.dog,npcs.cat].forEach(c=>{guardNpc(c);basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R)});
 }
 function steer(c,tg,sp,dt){
- const n=c.n,f=c.f;vA.copy(tg).addScaledVector(n,-tg.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();
- for(const s of spotObjs){const sn=s.userData.n,an=Math.acos(Math.min(1,n.dot(sn))),r0=SPOTS[s.userData.spot].reach*1.15+.12;if(an<r0){vB.copy(n).addScaledVector(sn,-n.dot(sn));if(vB.lengthSq()>1e-6){vB.normalize();vA.addScaledVector(vB,(r0-an)/r0*3)}}}
- for(const pr of propN){const an=Math.acos(Math.min(1,n.dot(pr)));if(an<.13){vB.copy(n).addScaledVector(pr,-n.dot(pr));if(vB.lengthSq()>1e-6){vB.normalize();vA.addScaledVector(vB,(.13-an)/.13*2.5)}}}
+ const n=c.n,f=c.f,aim=walkTarget(c,n,tg,walkRadius(c));vA.copy(aim).addScaledVector(n,-aim.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();
  for(const e of EX){const an=Math.acos(Math.min(1,n.dot(e.n)));if(an<e.r){vB.copy(n).addScaledVector(e.n,-n.dot(e.n));if(vB.lengthSq()>1e-6){vB.normalize();vA.addScaledVector(vB,(e.r-an)/e.r*3.5)}}}
  vA.normalize();
  const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=3.6*dt;
  f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));
- if(sp>0){vC.crossVectors(n,f).normalize();const st=sp*dt*(Math.abs(ang)>1.6?.3:1);n.applyAxisAngle(vC,st);f.applyAxisAngle(vC,st)}
+ if(sp>0){vC.crossVectors(n,f).normalize();const st=Math.min(n.angleTo(aim),sp*dt*(Math.abs(ang)>1.6?.3:1));n.applyAxisAngle(vC,st);f.applyAxisAngle(vC,st)}
  n.normalize();f.addScaledVector(n,-f.dot(n)).normalize();
  return Math.acos(Math.min(1,n.dot(tg)))}
 function npcUpdate(dt){
@@ -1001,7 +1147,7 @@ function npcUpdate(dt){
    cat.sp=da>.9?.9:da>.3?.65:da>.1?.4:0;steer(cat,tg,cat.sp,dt);
    if(da<.12&&cat.hop<=0&&rnd2()<dt*1.5)cat.hop=.5}
   sep(cat,pn,.17);sep(cat,g.n,.13);if(cat.mode!=='lick')sep(cat,d.n,.12)}
- for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){c.st='orbit';c.sit=0;c.lay=0}if(id==='girl')c.wave=false}basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
+ for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){c.st='orbit';c.sit=0;c.lay=0}if(id==='girl')c.wave=false}guardNpc(c);basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
  {const r=g.rig;
   r.legs.forEach(l=>{l.position.y=.36});
   if(r.shades)r.shades.visible=g.pose==='lie';
@@ -1142,11 +1288,11 @@ function rideQuat(group,local,axis,targetAngle,out){
  out.premultiply(rideQ3.setFromAxisAngle(TOP,targetAngle-Math.atan2(rideV2.x,rideV2.z)));
  return len}
 let zoomBack=null,zoomKind='';
-function zoomRide(kind){if(zoomBack==null)zoomBack=zt;zoomKind=kind;zt=kind==='swing'?.22:.24}
+function zoomRide(kind){if(zoomBack==null)zoomBack=zt;zoomKind=kind;zt=kind==='swing'?.22:.32}
 function zoomClear(){if(zoomBack!=null){zt=zoomBack;zoomBack=null}zoomKind=''}
 function goRide(o){
- if(!o||ride)return;stopLie();
- auto={n:o.userData.stand.clone(),reach:.11,ride:o.userData.ride,group:o};
+ if(!o||ride)return;endRest();stopLie();boyNav.nav=null;
+ auto={n:o.userData.stand.clone(),reach:.035,ride:o.userData.ride,group:o};
  if(o.userData.ride==='slide'||o.userData.ride==='swing')zoomRide(o.userData.ride)}
 function beginRide(kind,group){
  if(ride)return;jh=0;jv=0;stopLie();if(snack)endSnack();
@@ -1170,6 +1316,14 @@ function rideTick(dt){
   boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rideStand();
   if(u>=1){ride.phase='play';ride.t=0;ride.slid=false}
   return}
+ if(ride.phase==='slide-land'){
+  ride.t+=dt;const u=Math.min(1,ride.t/.70),e=ease(u);
+  rideV2.lerpVectors(g.userData.exit,g.userData.land,e);
+  rideStand();legs.forEach(l=>l.rotation.x=-Math.PI/2*(1-e));
+  placeSlideRider(g,rideV2,1-e,0);
+  if(u>=1){yaw=boy.rotation.y;ride=null}
+  return;
+ }
  if(ride.phase==='off'){
   ride.t+=dt;const u=Math.min(1,ride.t/.3),e=ease(u);
   if(g.userData.pivot)g.userData.pivot.rotation.x=ride.a0*(1-e);
@@ -1212,34 +1366,44 @@ function rideTick(dt){
   arms.forEach(a=>{gripSwing(g,a);a.rotation.x*=pose;a.rotation.z*=pose});
   return}
  ride.t+=dt;
- const steps=g.userData.steps,STEP=.56,climb=steps.length*STEP,turn=.28,slide=1.15;
+ const steps=g.userData.steps,STEP=.43,climb=steps.length*STEP,settle=.85,slide=2.45;
+ let seated=0,pitch=0;
  if(ride.t<climb){
-  const i=Math.min(steps.length-1,Math.floor(ride.t/STEP)),u=(ride.t-i*STEP)/STEP,e=u<.42?0:ease((u-.42)/.58);
+  const i=Math.min(steps.length-1,Math.floor(ride.t/STEP)),u=(ride.t-i*STEP)/STEP,e=ease(u);
   rideV2.lerpVectors(i?steps[i-1]:g.userData.foot,steps[i],e);
-  const lift=Math.sin(Math.min(1,u/.72)*Math.PI),lead=i%2;
-  legs[lead].rotation.x=-lift*1.45;legs[1-lead].rotation.x=0;
-  arms[0].rotation.z=-.45;arms[1].rotation.z=.45;arms[0].rotation.x=arms[1].rotation.x=-.9;body.rotation.x=.28;body.position.y=0;
-  boy.rotation.set(0,Math.PI/2,0);
- }else if(ride.t<climb+turn){
-  const u=(ride.t-climb)/turn;
-  rideV2.copy(steps[steps.length-1]);
-  legs[0].rotation.x=legs[1].rotation.x=0;arms[0].rotation.z=-.3;arms[1].rotation.z=.3;arms[0].rotation.x=arms[1].rotation.x=-.4;body.rotation.x=.08;body.position.y=0;
-  boy.rotation.set(0,Math.PI/2,0);
+  const lift=Math.sin(u*Math.PI),lead=i%2;
+  legs[lead].rotation.x=-lift*.95;legs[1-lead].rotation.x=.18*lift;
+  arms[0].rotation.set(-1.15+.22*lift,0,-.35);arms[1].rotation.set(-1.15-.22*lift,0,.35);
+  body.rotation.x=.16;body.position.y=.025*lift;
+ }else if(ride.t<climb+settle){
+  const u=(ride.t-climb)/settle,e=ease(u);seated=e;
+  rideV2.lerpVectors(g.userData.top,g.userData.slideCurve.getPoint(0),e);
+  legs.forEach(l=>l.rotation.x=-Math.PI/2*e);
+  arms[0].rotation.set(-.9*(1-e),0,-.35);arms[1].rotation.set(-.9*(1-e),0,.35);
+  body.rotation.x=.16*(1-e);body.position.y=0;
  }else{
-  const u=Math.min(1,(ride.t-climb-turn)/slide),e=Math.pow(u,1.35);
+  const u=Math.min(1,(ride.t-climb-settle)/slide),e=u*u*(2-u);
   if(!ride.slid){ride.slid=true;slideSfx()}
-  rideV2.copy(g.userData.top).lerp(g.userData.exit,e);
-  const sit=u<.78?1:1-(u-.78)/.22;
-  legs[0].rotation.x=legs[1].rotation.x=-1.15*sit;arms[0].rotation.z=-2.1*sit;arms[1].rotation.z=2.1*sit;arms[0].rotation.x=arms[1].rotation.x=-.15*sit;body.rotation.x=.14*sit;body.position.y=0;
-  boy.rotation.set(0,Math.PI/2,0);
-  if(u>=1){
-   const len=rideQuat(g,rideV2,rideAxZ,Math.PI/2,world.quaternion);
-   boy.position.set(0,len,0);boy.rotation.set(0,Math.PI/2,0);rideStand();
-   ride.phase='stand';ride.t=0;ride.len0=len;ride.q0=world.quaternion.clone();
-   rideQuat(g,g.userData.land,rideAxZ,Math.PI/2,rideQ2);ride.q1=rideQ2.clone();return}
+  const tangent=g.userData.slideCurve.getTangent(e);
+  rideV2.copy(g.userData.slideCurve.getPoint(e));
+  pitch=Math.atan2(-tangent.y,tangent.z);seated=1;
+  legs.forEach(l=>l.rotation.x=-Math.PI/2);
+  arms[0].rotation.set(-.12,0,-.65);arms[1].rotation.set(-.12,0,.65);
+  body.rotation.x=-.10*Math.sin(u*Math.PI);body.position.y=0;
+  if(u>=1){ride.phase='slide-land';ride.t=0;return}
  }
- const len=rideQuat(g,rideV2,rideAxZ,Math.PI/2,world.quaternion);
- boy.position.set(0,len,0)}
+ placeSlideRider(g,rideV2,seated,pitch);
+}
+function placeSlideRider(g,point,seated,pitch){
+ // rideQuat reuses rideV2 internally; copy the path sample before passing it in.
+ const sample=point.clone();
+ rideQuat(g,sample,rideAxZ,Math.PI/2,world.quaternion);
+ boy.quaternion.copy(world.quaternion).multiply(g.quaternion).multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),pitch));
+ const normal=new T.Vector3(0,1,0).applyAxisAngle(new T.Vector3(1,0,0),pitch);
+ const local=sample.clone().addScaledVector(normal,.055+.10*seated);
+ local.add(new T.Vector3(0,-.36*boy.scale.y*seated,0).applyAxisAngle(new T.Vector3(1,0,0),pitch));
+ boy.position.copy(local.applyQuaternion(g.quaternion).add(g.position).applyQuaternion(world.quaternion));
+}
 /* ===== 썬베드 · 티테이블 ===== */
 const relaxHits=[];
 let rest=null,cine=null,bedRoot=null,teaRoot=null;
@@ -1251,31 +1415,45 @@ function yawFlat(dir){const d=dir.clone();d.y=0;if(d.lengthSq()<1e-4)return yaw;
 function yawAlong(dir){return yawFlat(dir.clone().applyQuaternion(world.quaternion))}
 function focusN(n,z){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='cine';zt=z||.26;cine={n:(rest&&rest.kind==='tea'?teaRoot.userData.n:n).clone(),pos:new T.Vector3()}}
 function clearWear(){for(const k of Object.keys(wearOn))wearOn[k]='';saveLook();applyLook()}
-function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);for(const c of Object.values(npcs)){if(c.pose==='lie')c.rig.body.position.set(0,0,0)}rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
-function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.14,bed:pick.userData.bed};ring(n)}
+function endRest(){if(!rest&&!cine)return;
+ if(rest){const exit=rest.kind==='bed'?bedRoot.userData.beds[rest.bed].userData.foot:teaRoot.userData.chairs[rest.seats.boy].userData.approach;alignUp(meshN(exit))}
+ for(const c of Object.values(npcs)){const safe=safeWalkGoal(c.n,walkRadius(c));if(safe)c.n.copy(safe);c.safeN=c.n.clone();c.nav=null}
+ boyNav.nav=null;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);for(const c of Object.values(npcs)){if(c.pose==='lie')c.rig.body.position.set(0,0,0)}rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
+function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.035,bed:pick.userData.bed};ring(n)}
 function alignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(up.lengthSq()<1e-8)return;up.normalize();const turn=new T.Quaternion().setFromUnitVectors(up,AY);world.quaternion.premultiply(turn).normalize()}
-function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const n=meshN(teaRoot.userData.chairs[chair]);auto={n,reach:.06,tea:chair};ring(n)}
-function beginBed(index){clearWear();const beds=bedRoot.userData.beds;alignUp(meshN(beds[index]));jh=0;jv=0;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false};focusN(meshN(beds[index]),.62);toast('썬베드에 누웠어요')}
+function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const n=meshN(teaRoot.userData.chairs[chair].userData.approach);auto={n,reach:.035,tea:chair};ring(n)}
+function beginBed(index){clearWear();const beds=bedRoot.userData.beds;alignUp(meshN(beds[index]));jh=0;jv=0;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false,heartT:.25};focusN(meshN(beds[index]),.62);toast('썬베드에 누웠어요')}
 function assignSeats(clicked){const used=new Set([clicked]);const take=p=>{if(!used.has(p)){used.add(p);return p}for(let i=0;i<4;i++)if(!used.has(i)){used.add(i);return i}return 0};return {boy:clicked,girl:take((clicked+2)%4),dog:take(1),cat:take((clicked+3)%4)}}
 function beginTeaSit(chair){const seats=assignSeats(chair),ch=teaRoot.userData.chairs[seats.boy],n=meshN(ch);alignUp(n);rest={kind:'tea',phase:'boy',t:0,seats,heartT:.2,yaw:yawAlong(faceTan(n,teaRoot.userData.n))+Math.PI};focusN(n,.46);toast('의자에 앉았어요')}
-function startGirlTea(){const tableN=teaRoot.userData.n,chair=teaRoot.userData.chairs[rest.seats.girl],n=meshN(chair);npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:1.7,onArrive(){if(!rest)return;rest.phase='dog';rest.t=0;focusN(n,.32);startDogTea()}};rest.phase='girl';focusN(npcs.girl.n,.34)}
-function startDogTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.dog]);npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.45,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0;focusN(n,.3)}};rest.phase='dog';focusN(npcs.dog.n,.32)}
-function startCatTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.cat]);npcs.cat.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.3,onArrive(){if(!rest)return;showParty()}};rest.phase='cat';focusN(npcs.cat.n,.3)}
+function startGirlTea(){const tableN=teaRoot.userData.n,chair=teaRoot.userData.chairs[rest.seats.girl],n=meshN(chair.userData.approach);npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:1.7,onArrive(){if(!rest)return;rest.phase='dog';rest.t=0;focusN(n,.32);startDogTea()}};rest.phase='girl';focusN(npcs.girl.n,.34)}
+function startDogTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.dog].userData.approach);npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.45,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0;focusN(n,.3)}};rest.phase='dog';focusN(npcs.dog.n,.32)}
+function startCatTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.cat].userData.approach);npcs.cat.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.3,onArrive(){if(!rest)return;showParty()}};rest.phase='cat';focusN(npcs.cat.n,.3)}
 function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,teaRoot.userData.tableSurface,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,teaRoot.userData.tableSurface,dp.z);rest.phase='party';rest.heartT=.15;focusN(teaRoot.userData.n,.5)}
-function relaxStep(c,tg,sp,dt){const n=c.n,f=c.f;vA.copy(tg).addScaledVector(n,-tg.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=5*dt;f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));if(sp>0){vC.crossVectors(n,f).normalize();const st=sp*dt*(Math.abs(ang)>1.2?.45:1);n.applyAxisAngle(vC,st);f.applyAxisAngle(vC,st)}n.normalize();f.addScaledVector(n,-f.dot(n)).normalize();return Math.acos(Math.min(1,n.dot(tg)))}
-function relaxMove(c,dt){const j=c.job;if(!j)return;c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';if(j.phase==='sit'||j.phase==='lie'){c.sp=0;c.mv=0;c.n.copy(j.n);if(j.face)c.f.copy(j.face);return}const tg=j.phase==='lap'?j.pts[j.i]:j.n;c.sp=j.sp||1;const left=relaxStep(c,tg,c.sp,dt);const near=j.phase==='lap'?.22:j.done==='lie'?.34:.18;if(left+1e-4<(j.best==null?9:j.best)){j.best=left;j.stuck=0}else j.stuck=(j.stuck||0)+dt;if(left<near||(j.stuck>1.4&&left<.7)){if(j.phase==='lap'){j.i++;j.best=null;j.stuck=0;if(j.i>=j.pts.length)j.phase='run'}else{j.phase=j.done||'sit';c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';c.n.copy(j.n);if(j.face)c.f.copy(j.face);c.sp=0;if(j.onArrive){const fn=j.onArrive;j.onArrive=null;fn()}}}}
+function relaxStep(c,tg,sp,dt){
+ const n=c.n,f=c.f,aim=walkTarget(c,n,tg,walkRadius(c));vA.copy(aim).addScaledVector(n,-aim.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();
+ const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=5*dt;f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));
+ if(sp>0){vC.crossVectors(n,f).normalize();const st=Math.min(n.angleTo(aim),sp*dt*(Math.abs(ang)>1.2?.45:1)),next=n.clone().applyAxisAngle(vC,st);moveWalker(c,next);f.applyAxisAngle(vC,st)}
+ n.normalize();f.addScaledVector(n,-f.dot(n)).normalize();return n.angleTo(tg);
+}
+function relaxMove(c,dt){const j=c.job;if(!j)return;c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';if(j.phase==='sit'||j.phase==='lie'){c.sp=0;c.mv=0;c.n.copy(j.n);if(j.face)c.f.copy(j.face);return}const tg=j.phase==='lap'?j.pts[j.i]:j.n;c.sp=j.sp||1;const left=relaxStep(c,tg,c.sp,dt);const near=j.phase==='lap'?.07:.035;if(left+1e-4<(j.best==null?9:j.best)){j.best=left;j.stuck=0}else j.stuck=(j.stuck||0)+dt;if(left<near){if(j.phase==='lap'){j.i++;j.best=null;j.stuck=0;if(j.i>=j.pts.length)j.phase='run'}else{j.phase=j.done||'sit';c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';c.n.copy(j.n);if(j.face)c.f.copy(j.face);c.sp=0;if(j.onArrive){const fn=j.onArrive;j.onArrive=null;fn()}}}}
 /* Start at the actual seated head, not the globe's north pole. */
 function spawnPartyHeartAt(head,top){
  const h=makeHeart(),origin=new T.Vector3((Math.random()-.5)*.25,top,0);
  head.updateWorldMatrix(true,false);head.localToWorld(origin);world.worldToLocal(origin);
- const up=new T.Vector3(0,1,0).applyQuaternion(teaRoot.quaternion).normalize();
- const side=new T.Vector3(1,0,0).applyQuaternion(teaRoot.quaternion).normalize();
+ if(rest&&rest.kind==='bed'){head.getWorldPosition(origin);world.worldToLocal(origin);origin.addScaledVector(new T.Vector3(0,1,0).applyQuaternion(bedRoot.quaternion),.78)}
+ const frame=rest&&rest.kind==='bed'?bedRoot:teaRoot;
+ const up=new T.Vector3(0,1,0).applyQuaternion(frame.quaternion).normalize();
+ const side=new T.Vector3(1,0,0).applyQuaternion(frame.quaternion).normalize();
  h.scale.setScalar(.42+Math.random()*.12);h.position.copy(origin);
  h.userData={age:0,origin,up,side,life:2.8+Math.random()*.5,lift:.55+Math.random()*.15,drift:(Math.random()-.5)*.22,phase:Math.random()*Math.PI*2};
  h.material.rotation=0;world.add(h);partyHearts.push(h);
 }
 function spawnPartyHeart(){if(npcs.girl)spawnPartyHeartAt(npcs.girl.rig.head,.9);spawnPartyHeartAt(boyHead,.9)}
-function relaxTick(dt){try{if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(n,.55);toast('여자아이도 누웠어요')}};focusN(n,.58)}}
+function relaxTick(dt){try{
+ if(rest&&rest.kind==='bed'){
+  rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=.95;rest.heartDue=true}
+ }
+ if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(n,.55);toast('여자아이도 누웠어요')}};focusN(n,.58)}}
  if(rest&&rest.kind==='tea'){if(rest.phase==='boy'){rest.t+=dt;if(rest.t>=3)startGirlTea()}else if(rest.phase==='waitcat'){rest.t+=dt;if(rest.t>=2)startCatTea()}else if(rest.phase==='party'){rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=1;spawnPartyHeart()}}}
  for(let i=partyHearts.length-1;i>=0;i--){const h=partyHearts[i],u=h.userData;u.age+=dt;h.position.copy(u.origin).addScaledVector(u.up,u.age*u.lift).addScaledVector(u.side,u.age*u.drift+.09*(Math.sin(u.age*1.8+u.phase)-Math.sin(u.phase)));h.material.opacity=Math.min(1,u.age/.18)*Math.min(1,Math.max(0,(u.life-u.age)/.85));h.material.rotation=.12*Math.sin(u.age*1.6+u.phase);if(u.age>=u.life){h.parent&&h.parent.remove(h);h.material.dispose();partyHearts.splice(i,1)}}}catch(e){}}
 /* Both rigs are placed in the bed's frame, after NPC/walking animations.
@@ -1311,6 +1489,8 @@ function relaxPose(){
   if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true;
   const girl=npcs.girl;
   if(girl&&girl.pose==='lie')placeBedGuest(girl.o,girl.rig,bedRoot.userData.beds[1-rest.bed]);
+  // Emit only after both supported poses have been applied for this frame.
+  if(rest.heartDue){rest.heartDue=false;spawnPartyHeartAt(boyHead,.9);if(girl&&girl.pose==='lie')spawnPartyHeartAt(girl.rig.head,.9)}
  }else{
   if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;
   if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.36;l.rotation.set(-Math.PI/2,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}
@@ -1434,7 +1614,7 @@ function buildRelax(){
   mk(new T.SphereGeometry(.08,10,8),plastic,0,.78,0,back).scale.set(3.6,.7,.6);
   mk(new T.TorusGeometry(.07,.016,6,12),plastic,0,.8,.02,back);
   [-.44,.44].forEach(x=>{mk(new T.BoxGeometry(.1,.05,.78),plastic,x,.52,.05,b);mk(new T.BoxGeometry(.07,.16,.07),plastic,x,.42,-.22,b);mk(new T.CylinderGeometry(.04,.045,.16,8),plastic,x,.46,.42,b)});
-  const foot=new T.Object3D();foot.position.set(0,.42,.62);b.add(foot);b.userData.foot=foot;
+  const foot=new T.Object3D();foot.position.set(0,0,2.12);b.add(foot);b.userData.foot=foot;
   const head=new T.Object3D();head.position.set(0,.7,-.85);b.add(head);b.userData.head=head;
   const pick=new T.Mesh(new T.BoxGeometry(.95,.7,2.35),ghost());pick.position.set(0,.45,.15);pick.userData.relax='bed';b.add(pick);relaxHits.push(pick);
   return b};
@@ -1455,7 +1635,7 @@ function buildRelax(){
  [[dist,0],[0,-dist],[-dist,0],[0,dist]].forEach(([x,z],i)=>{const c=new T.Group();c.position.set(x,0,z);c.rotation.y=Math.atan2(-x,-z||0);const col=i%2?mint:yellow;
   c.userData.seatTop=seatY+.07;c.userData.teaFeet=[[-.48,-.56],[.48,-.56],[-.48,.42],[.48,.42]].map(([x,z])=>({x,z,top:seatY-.07,rt:.07,rb:.08}));
   mk(new T.BoxGeometry(1.42,.14,1.44),col,0,seatY,-.08,c);mk(new T.BoxGeometry(1.42,.7,.14),col,0,seatY+.4,-.73,c);
-  const pick=new T.Mesh(new T.BoxGeometry(1.8,2.3,1.7),ghost());pick.position.set(0,1.05,-.05);pick.userData.relax='tea';pick.userData.chair=i;c.add(pick);relaxHits.push(pick);teaRoot.add(c);chairs.push(c)});
+  const pick=new T.Mesh(new T.BoxGeometry(1.8,2.3,1.7),ghost());pick.position.set(0,1.05,-.05);pick.userData.relax='tea';pick.userData.chair=i;c.add(pick);relaxHits.push(pick);const approach=new T.Object3D();approach.position.set(0,0,-2.90);c.add(approach);c.userData.approach=approach;teaRoot.add(c);chairs.push(c)});
  teaRoot.userData.chairs=chairs;
  const props=new T.Group();props.visible=false;teaRoot.add(props);teaRoot.userData.props=props;
  const cake=new T.Group();cake.position.y=teaRoot.userData.tableSurface;cake.scale.setScalar(1.7);mk(new T.CylinderGeometry(.2,.22,.14,20),cocoa,0,.08,0,cake);mk(new T.CylinderGeometry(.18,.18,.05,20),cream,0,.16,0,cake);mk(new T.SphereGeometry(.035,8,6),cocoa,.08,.2,.02,cake);props.add(cake);
@@ -1492,19 +1672,23 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
  const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
- if(!ride&&dockOn&&!auto)auto={n:rv(),reach:.05};if(!ride&&dockOn&&(wanderT-=dt)<=0){wanderT=2+rnd2()*3;if(rnd2()<.5&&jh<=0)jv=6.5}
+ if(!ride&&dockOn&&!auto){const n=safeWalkGoal(rv(),.72);if(n)auto={n,reach:.05}};if(!ride&&dockOn&&(wanderT-=dt)<=0){wanderT=2+rnd2()*3;if(rnd2()<.5&&jh<=0)jv=6.5}
  if(ride&&ride.kind==='swing'&&ride.phase!=='off'&&(Math.hypot(ix,iz)>.01||Math.hypot(jx,jy)>.2))rideOff();
  if(ride)ix=iz=0;
  else if(auto&&(!modalOpen||dockOn)){tmp.copy(auto.n).applyQuaternion(world.quaternion);const ang=Math.acos(Math.min(1,tmp.y));
   if(ang<auto.reach){const s=auto.spot,rd=auto.ride,rg=auto.group,lie=auto.lie,bed=auto.bed,tea=auto.tea;auto=null;if(s)openSpot(s);else if(rd)beginRide(rd,rg);else if(lie)startLie(lie);else if(bed!=null)beginBed(bed);else if(tea!=null)beginTeaSit(tea)}
-  else{const l=Math.hypot(tmp.x,tmp.z)||1;ix=tmp.x/l;iz=-tmp.z/l}}
+  else{const current=TOP.clone().applyQuaternion(world.quaternion.clone().invert()),target=walkTarget(boyNav,current,auto.n,.72);tmp.copy(target).applyQuaternion(world.quaternion);const l=Math.hypot(tmp.x,tmp.z)||1;if(current.angleTo(target)<.005){ix=iz=0}else{ix=tmp.x/l;iz=-tmp.z/l}}}
  if(modalOpen&&!dockOn){ix=iz=0}
  let m=Math.hypot(ix,iz);if(m>1){ix/=m;iz/=m;m=1}
  if(m>.01&&lying&&!(auto&&auto.lie))stopLie();
  if(m>.01&&rest&&!(auto&&(auto.bed!=null||auto.tea!=null)))endRest();
  if(snack&&m>.01)endSnack();
  if(m>.01&&!rot){const kk=Math.min(1,dt*5);ob.x-=ob.x*kk;ob.y-=ob.y*kk;if(Math.abs(ob.x)+Math.abs(ob.y)<.001)ob.x=ob.y=0}
- if(m>.01){axis.set(iz,0,ix).normalize();q.setFromAxisAngle(axis,m*.55*dt);world.quaternion.premultiply(q).normalize();
+ if(m>.01){
+  axis.set(iz,0,ix).normalize();q.setFromAxisAngle(axis,m*.55*dt);
+  const before=world.quaternion.clone(),current=TOP.clone().applyQuaternion(before.clone().invert()),candidate=before.clone().premultiply(q),next=TOP.clone().applyQuaternion(candidate.clone().invert()),walker={n:current};
+  if(moveWalker(walker,next)){const correction=new T.Quaternion().setFromUnitVectors(walker.n.clone().applyQuaternion(before),TOP);world.quaternion.copy(before).premultiply(correction).normalize()}else m=0;
+
   const yt=Math.atan2(ix,-iz);yaw+=Math.atan2(Math.sin(yt-yaw),Math.cos(yt-yaw))*Math.min(1,dt*12);
   stepT+=dt;if(stepT>.2){stepT=0;puff()}}
  boy.rotation.y=yaw;
@@ -1550,7 +1734,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
   }else cine.pos.copy(cine.n).multiplyScalar(R+1.45).applyQuaternion(world.quaternion);
   look.lerp(cine.pos,lookK);
  }
- else{const ty=snack?snack.look:swingOn?8.6:slideOn?7.15:2;look.x+=(0-look.x)*lookK;look.z+=(0-look.z)*lookK;look.y+=(ty-look.y)*lookK}
+ else{const ty=snack?snack.look:swingOn?8.6:slideOn?8.15:2;look.x+=(0-look.x)*lookK;look.z+=(0-look.z)*lookK;look.y+=(ty-look.y)*lookK}
  camDir.lerp(swingOn?swingDir:dir,Math.min(1,dt*2.6)).normalize();
  dkv=dkT?Math.min(1,dkv+dt/1.5):Math.max(0,dkv-dt/1.3);const dk1=ease(Math.min(1,dkv*2)),dk2=ease(Math.max(0,dkv*2-1)),wide=innerWidth>=760;
  const D=35*k*zm*(1+(1-e)*.7)*(1+dk1);cam.position.copy(look).addScaledVector(camDir,D);cam.position.x+=Math.sin(tw*.4)*.12;if(ob.x||ob.y){oE.set(ob.x,ob.y,0);oQ.setFromEuler(oE);cam.position.applyQuaternion(oQ);cam.up.set(0,1,0).applyQuaternion(oQ);oT.copy(look).applyQuaternion(oQ)}else{cam.up.set(0,1,0);oT.copy(look)}cam.lookAt(oT);cam.setViewOffset(innerWidth,innerHeight,wide?dk2*innerWidth*.25:0,dk1*innerHeight*(wide?.1:.28),innerWidth,innerHeight);
@@ -1645,7 +1829,7 @@ async function homeGuard(){try{const r=await fetch('/api/home-guard',{cache:'no-
  document.getElementById('app').hidden=false;
  setInterval(()=>{if(!halted)homeGuard().then(ok=>{if(!ok&&!halted)showBlock('비정상 접근입니다.')})},20000);
  const steps=[['글꼴과 바다를 준비하는 중…',async()=>{try{await Promise.race([Promise.all([document.fonts.load('800 40px "Noto Sans KR"','게시판상점쇼핑몰문의SHOP'),document.fonts.load('500 16px "Noto Sans KR"','공지사항 NOTICE MAIL'),document.fonts.load('700 16px "Noto Sans KR"','메뉴')]),sleep(3000)])}catch(e){}buildBg()}],
- ['작은 지구를 빚는 중…',buildPlanet],['귀여운 친구를 만드는 중…',buildBoy],['건물과 표지판을 세우는 중…',buildSpots],['나무와 꽃을 심는 중…',buildProps],['친구들을 데려오는 중…',buildNpcs],['바다 친구들을 부르는 중…',buildSea],['파도 소리를 조율하는 중…',()=>sleep(500)]];
+ ['작은 지구를 빚는 중…',buildPlanet],['귀여운 친구를 만드는 중…',buildBoy],['건물과 표지판을 세우는 중…',buildSpots],['나무와 꽃을 심는 중…',buildProps],['친구들을 데려오는 중…',()=>{buildNavigation();buildNpcs()}],['바다 친구들을 부르는 중…',buildSea],['파도 소리를 조율하는 중…',()=>sleep(500)]];
  for(let i=0;i<steps.length;i++){$('#lt').textContent=steps[i][0];await sleep(120);await steps[i][1]();$('#bi').style.width=Math.round((i+1)/steps.length*100)+'%';await sleep(300)}
  resize();frame();applyLook();$('#lt').textContent='파도가 밀려와요 🌊';await sleep(700);
  $('#load').classList.add('off');started=true;startAudio();setTimeout(()=>$('#hint').style.opacity=0,10000);
