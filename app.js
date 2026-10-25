@@ -59,13 +59,13 @@ const qaItem=x=>{
  const wait=!editing&&!x.answer&&isAdmin?`<button type="button" class="btn" data-edit="qa" data-i="${x.id}">답변하기</button>`:'';
  return `<div class="card"><div class="qa-top"><div class="qa-title"><span class="badge ${x.answer?'ok':'wait'}">${x.answer?'✅ 답변완료':'⏳ 답변대기'}</span><b>${esc(x.title)}</b></div>${delBtn('qna',x.id)}</div><small>${esc(x.name)} · ${esc(x.date)}</small><div class="prose">${x.body||''}</div>${editor||answered||wait}</div>`};
 const SK=[
- {e:'🎓',t:'AI 코딩 강의',p:'코딩을 조금도 몰라도 됩니다. 20년 넘는 IT 현장 경험과 함께, 어려운 용어 없이 쉽운 이해를 드리며 AI 전문가로 만들어드립니다.',g:['입문','프롬프트','실습 중심','자동화'],c:'#ffe1c9,#ffc2d9',n:1,w:1},
+ {e:'🎓',t:'AI 코딩 강의',p:'코딩을 조금도 몰라도 됩니다. 20년 넘는 IT 현장 경험과 함께, 어려운 용어 없이 쉬운 이해를 드리며 AI 전문가로 만들어드립니다.',g:['입문','프롬프트','실습 중심','자동화'],c:'#ffe1c9,#ffc2d9',n:1,w:1},
  {e:'🤖',t:'자동화 솔루션 판매',p:'전 자동화 목표로 맞춤형 자동화 솔루션 및 시스템을 구축합니다.',g:['유튜브','전자책','인스타·스레드','노래 생성','무료 광고'],c:'#ffe1c9,#ffd0ea',w:1,sols:[
   {e:'🎬',t:'유튜브 영상 자동 생성·등록',p:'자동으로 대본 및 영상을 만든 다음, 채널에 올리는 과정까지 전-자동화 솔루션입니다.'},
   {e:'📚',t:'전자책 300페이지 자동 출판',p:'300페이지 분량의 전자책을 목차 기획부터 본문 작성, 출판 파일까지 자동으로 만드는 솔루션입니다.'},
   {e:'📸',t:'인스타·스레드 자동 등록',p:'글과 이미지를 만들어 원하는 시간에 사람처럼 작성하여 인스타그램과 스레드에 등록하는 솔루션입니다. 무료 광고 활용이 가능합니다.'},
   {e:'🎵',t:'오프라인 노래 생성 프로그램',p:'인터넷이 되지 않아도 컴퓨터에서 트로트, 발라드 같은 노래를 만들어 주는 프로그램입니다.'}]},
- {e:'🏢',t:'맞춤형 프로그램 개발·납품',p:'그룹웨어, LIMS, 보안 솔루션 등 지구에 존재하는 모든 프로그램을 요구에 맞춰 개발하고 납품해요.',g:['그룹웨어','LIMS','보안','기획부터 납품까지'],c:'#cdf3e6,#d4e8ff',w:1}];
+ {e:'🏢',t:'맞춤형 프로그램 개발·납품',p:'정보보안 체계관리(ISO27001) 컨설팅, 전자결재/그룹웨어, 결과지 디자이너·산식 관리·결과지 이력관리가 가능한 범용 LIMS, DLP, DRM 보안 솔루션 등 지구에 존재하는 모든 프로그램을 솔루션 기반 가장 빠르게 지원합니다.',g:['그룹웨어','LIMS','보안','기획부터 납품까지'],c:'#cdf3e6,#d4e8ff',w:1}];
 function pfDetail(id){const x=PF.find(p=>p.id===id);if(!x)return '<p>작품을 찾을 수 없어요.</p>';const sub=encodeURIComponent('[포트폴리오 문의] '+x.title);
  const editing=isAdmin&&editKind==='pf'&&editId===id;
  const back=`<button class="btn back" data-back>← 목록으로</button>`;
@@ -101,7 +101,7 @@ function shopPage(){if(shopOpen)return goodsDetail(shopOpen);
 function consultCard(x){return `<div class="card cs"><div class="gb-top"><b>${esc(x.goodsName)}</b>${x.fresh?'<span class="badge wait">새 접수</span>':''}<small style="margin-left:auto">${esc(x.date)}</small></div><p>접수일시 ${esc(x.date)}</p><p>상품명 ${esc(x.goodsName)}</p><p>이름 ${esc(x.name)}</p><p>직책/직위 ${esc(x.job)}</p><p>연락처 ${esc(x.contact)}</p></div>`}
 const PAGES={
  me:()=>`<div class="hero"><div class="av">🧑‍💻</div><h3>지누기</h3><p class="job">맞춤형 프로그램 기획 · 개발<small>소속 없이 자유롭게 일하는 디지털 노마드</small></p><div>${['#자동화','#AI','#맞춤개발','#납품까지'].map(t=>`<span class="chp">${t}</span>`).join('')}</div><a class="btn" href="mailto:${CONTACT.mail}">✉️ ${CONTACT.mail.toUpperCase()}</a></div>
-  <div class="stats"><div><b>1인</b><small>기획부터 납품까지</small></div><div><b>3개월</b><small>무상 유지보수</small></div><div><b>2일</b><small>견적 회신</small></div></div>
+  <div class="stats"><div><b>1인</b><small>기획부터 납품까지</small></div><div><b>3개월</b><small>무상 하자보수 및 유지보수</small></div><div><b>2일</b><small>견적 회신</small></div></div>
   <h4 class="sec">✨ 할 수 있는 일</h4>
   <div class="bento">${SK.map(x=>`<div class="bk${x.w?' wide':''}" style="--c:${x.c}">${x.n?'<span class="new">NEW</span>':''}<div class="bi">${x.e}</div><b>${x.t}</b><p>${x.p}</p>${x.sols?`<div class="sols">${x.sols.map(s=>`<div class="sol"><b>${s.e} ${s.t}</b><p>${s.p}</p></div>`).join('')}</div>`:''}<div>${x.g.map(g=>`<span class="tg">#${g}</span>`).join('')}</div></div>`).join('')}</div>`,
  pf:()=>pfOpen?pfDetail(pfOpen):`${isAdmin?`<div class="card fm"><b>✏️ 포트폴리오 등록 (관리자)</b><input id="pt" placeholder="제목"><input id="ps" placeholder="부제"><div>${wys('pf')}</div><button class="btn" data-act="pf">등록</button></div>`:''}<p class="hint2">카드를 누르면 상세 내용을 볼 수 있어요</p><div class="pg">${PF.map(x=>`<div class="card pf pfc" data-pf="${x.id}" role="button"><div class="pt" style="background:linear-gradient(135deg,${esc(x.tone)})">${x.emoji}</div><div class="pb"><b>${esc(x.title)}</b><p>${esc(x.subtitle)}</p><span class="more">자세히 보기 →</span></div></div>`).join('')||'<p class="hint2">아직 작품이 없어요</p>'}</div>`,
@@ -1322,6 +1322,18 @@ function finishSlide(g){
  rideStand();boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);
  jh=0;jv=0;amp=0;boyNav.nav=null;ride=null;
 }
+/* Swing seat sits inside the swing footprint. Leaving there freezes walking
+   because every step fails isWalkable — park on a clear patch first. */
+function finishSwing(g){
+ const here=TOP.clone().applyQuaternion(qI.copy(world.quaternion).invert());
+ const prefer=(ride.after&&ride.after.n)||g.userData.stand||here;
+ const safe=safeWalkGoal(prefer,.76,here)||safeWalkGoal(g.userData.stand,.76,here)||prefer;
+ alignUp(safe);
+ rideStand();boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);
+ jh=0;jv=0;amp=0;boyNav.nav=null;
+ const next=ride.after;ride=null;
+ if(next){const goal=safeWalkGoal(next.n,.72,safe)||next.n;auto=Object.assign({},next,{n:goal})}
+}
 function rideTick(dt){
  if(!ride)return;
  const g=ride.group;
@@ -1352,7 +1364,7 @@ function rideTick(dt){
   const k=1-e;
   legs[0].rotation.x=legs[1].rotation.x=-1.15*k;arms[0].rotation.z=-1.15*k;arms[1].rotation.z=1.15*k;arms[0].rotation.x=arms[1].rotation.x=-.35*k;body.rotation.x=.08*k;body.position.y=0;
   boy.rotation.set(ride.a0*.2*k,yaw,0);
-  if(u>=1){if(g.userData.pivot)g.userData.pivot.rotation.x=0;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rideStand();const next=ride.after;ride=null;if(next)auto=next}
+  if(u>=1){if(g.userData.pivot)g.userData.pivot.rotation.x=0;finishSwing(g)}
   return}
  if(ride.phase==='stand'){
   ride.t+=dt;const u=Math.min(1,ride.t/.34),e=ease(u);
@@ -1653,7 +1665,7 @@ function buildRelax(){
  const wood=M(0xf3d7a4,{roughness:.7}),cream=M(0xfff6ea),mint=M(0x7ee0c8),yellow=M(0xffe566),cocoa=M(0x8a5a3a,{roughness:.8}),coffee=M(0x6b3a22),strawC=M(0xfff3c4);
  const plastic=M(0xf5f7fb,{roughness:.22,metalness:.04}),shade=M(0xd5dde8,{roughness:.4}),white=M(0xfffdfb,{roughness:.55});
  const ghost=()=>new T.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});
- const bedN=new T.Vector3(.991,.011,-.130).normalize(),teaN=new T.Vector3(.601,-.326,.729).normalize();
+ const bedN=new T.Vector3(.991,.011,-.130).normalize(),teaN=new T.Vector3(.20,.05,.98).normalize();
  window.clearN=[{n:bedN.clone(),pad:1.05},{n:teaN.clone(),pad:.74}];
  bedRoot=new T.Group();bedRoot.userData.beds=[];
  const lounger=()=>{const b=new T.Group();
@@ -1719,6 +1731,19 @@ function buildRelax(){
 }
 const clock=new T.Clock(),AY=new T.Vector3(0,1,0),axis=new T.Vector3(),q=new T.Quaternion(),q2=new T.Quaternion(),tmp=new T.Vector3(),cl=new T.Vector3();
 const look=new T.Vector3(0,2,0),dir=new T.Vector3(-.09,.5,.86).normalize(),camDir=dir.clone(),swingDir=new T.Vector3(-.28,.4,1).normalize();
+const nearHere=new T.Vector3(),nearLocal=new T.Vector3(),nearInvQ=new T.Quaternion();
+/* Front/back/side all count: use the object's local footprint, not a single stand point. */
+function localProximity(o,hx,hz,cx=0,cz=0,round=false,pad=1.15){
+ if(!o||!o.userData||!o.userData.n)return Infinity;
+ nearHere.copy(TOP).applyQuaternion(qI.copy(world.quaternion).invert());
+ if(nearHere.dot(o.userData.n)<.12)return Infinity;
+ nearLocal.copy(nearHere).multiplyScalar(R).sub(o.position).applyQuaternion(nearInvQ.copy(o.quaternion).invert());
+ const x=Math.abs(nearLocal.x-cx),z=Math.abs(nearLocal.z-cz);
+ if(round){if(x*x+z*z>(hx+pad)*(hx+pad))return Infinity}
+ else{const dx=Math.max(0,x-hx),dz=Math.max(0,z-hz);if(dx*dx+dz*dz>pad*pad)return Infinity}
+ tmp.copy(o.userData.n).applyQuaternion(world.quaternion);
+ return Math.acos(T.MathUtils.clamp(tmp.y,-1,1));
+}
 function resize(){const w=innerWidth,h=innerHeight;rd.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();rd.getDrawingBufferSize(U.uR.value);bgC.left=-cam.aspect;bgC.right=cam.aspect;bgC.updateProjectionMatrix();fxResize();k=Math.max(1,Math.pow(.95/cam.aspect,.8))}
 addEventListener('resize',resize);
 function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const dt=Math.min(clock.getDelta(),.05);tw+=dt;
@@ -1758,18 +1783,24 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
   markers.forEach((o,i)=>{o.m.position.y=o.y+Math.sin(tw*3+i)*.1;o.m.rotation.y+=dt*2});
  cl.copy(cam.position);world.worldToLocal(cl);
  spotObjs.forEach(o=>{basisQ(o.userData.n,cl,q2);o.quaternion.slerp(q2,Math.min(1,dt*5))});
- // Shops and facilities share one nearest-target selection, so a nearby shop
- // cannot mask the action for the swing, slide, chair or sunbed beside it.
+ // Shops and facilities share one nearest-target selection. Proximity uses each
+ // object's footprint so front, back and sides all raise the same action.
  near=null;nearRide=null;nearRelax=null;
  if(!ride&&!rest&&!lying&&!snack&&!modalOpen){
   let best=Infinity;
-  const distance=n=>{tmp.copy(n).applyQuaternion(world.quaternion);return Math.acos(T.MathUtils.clamp(tmp.y,-1,1))};
-  for(const o of spotObjs){const a=distance(o.userData.n);if(a<SPOTS[o.userData.spot].reach+.1&&a<best){best=a;near=o.userData.spot}}
-  for(const o of rides){const a=distance(o.userData.stand||o.userData.n);if(a<.36&&a<best){best=a;nearRide=o;near=null}}
+  for(const o of spotObjs){
+   const kind=o.userData.spot,hx=kind==='shop'?1.9:kind==='board'?1.25:.7;
+   const a=localProximity(o,hx,0,0,0,true,1.25);
+   if(a<best){best=a;near=o.userData.spot;nearRide=null;nearRelax=null}
+  }
+  for(const o of rides){
+   const a=o.userData.ride==='slide'?localProximity(o,1.05,2.7,0,.75,false,1.4):localProximity(o,1.5,1.8,0,.15,false,1.25);
+   if(a<best){best=a;nearRide=o;near=null;nearRelax=null}
+  }
   for(const hit of relaxHits){
-   const target=hit.userData.relax==='bed'?(hit.parent.userData.foot||hit.parent):hit.parent;
-   const a=distance(meshN(target));
-   if(a<.36&&a<best){best=a;nearRelax=hit;nearRide=null;near=null}
+   const host=hit.parent;
+   const a=hit.userData.relax==='bed'?localProximity(host,.6,1.35,0,.15,false,1.2):(teaRoot?localProximity(teaRoot,2.5,0,0,0,true,1.2):localProximity(host,.9,1.0,0,-.08,false,1.2));
+   if(a<best){best=a;nearRelax=hit;nearRide=null;near=null}
   }
  }
  const ab=$('#act');if(near){const sp=SPOTS[near];ab.hidden=false;ab.textContent=`${sp.icon} ${sp.name} 열기`}
