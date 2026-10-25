@@ -632,17 +632,22 @@ const audioTick=sw=>{if(!ac||ac.state!=='running')return;const t=ac.currentTime,
  gRn.gain.setTargetAtTime(.2*wxc.rain,t,.6)};
 
 /* ===== 조작 (화면 기준 방향) ===== */
-const keys={};let jx=0,jy=0,near=null,nearRide=null,jh=0,jv=0;
+const keys={};let jx=0,jy=0,near=null,nearRide=null,nearRelax=null,jh=0,jv=0;
 const MV=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();
  if(modalOpen){if(k==='escape')closeModal();return}
  if(MV.includes(k)){if(snack)endSnack();keys[k]=true;auto=null;stopLie();e.preventDefault()}
  if(k===' '){if(ride)return;if(snack)endSnack();stopLie();e.preventDefault();if(!e.repeat&&jh<=0)jv=6.5}
- if((k==='enter'||k==='e')&&near){e.preventDefault();openSpot(near)}
- else if((k==='enter'||k==='e')&&nearRide){e.preventDefault();goRide(nearRide)}});
+ if((k==='enter'||k==='e')&&!e.repeat&&(near||nearRide||nearRelax)){e.preventDefault();activateNearby()}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
-$('#act').onclick=()=>{if(near)openSpot(near);else if(nearRide)goRide(nearRide)};
+function activateNearby(){
+ if(modalOpen||ride||rest||lying||snack)return;
+ if(near)openSpot(near);
+ else if(nearRide)goRide(nearRide);
+ else if(nearRelax){if(nearRelax.userData.relax==='tea')goTea(nearRelax.userData.chair);else goBed(nearRelax)}
+}
+$('#act').onclick=activateNearby;
 const joy=$('#joy'),knob=joy.firstElementChild;let jid=null;
 const jm=e=>{const r=joy.getBoundingClientRect(),x=(e.clientX-r.left-60)/44,y=(e.clientY-r.top-60)/44,l=Math.hypot(x,y),k=l>1?1/l:1;jx=x*k;jy=y*k;knob.style.transform=`translate(${jx*30}px,${jy*30}px)`;if(l>.2){if(snack)endSnack();auto=null;stopLie()}};
 joy.addEventListener('pointerdown',e=>{jid=e.pointerId;joy.setPointerCapture(jid);jm(e)});
@@ -989,7 +994,7 @@ function npcUpdate(dt){
   sep(cat,pn,.17);sep(cat,g.n,.13);if(cat.mode!=='lick')sep(cat,d.n,.12)}
  for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){c.st='orbit';c.sit=0;c.lay=0}if(id==='girl')c.wave=false}basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
  {const r=g.rig;
-  r.legs.forEach(l=>{l.position.y=g.pose==='sit'?.64:.36});
+  r.legs.forEach(l=>{l.position.y=.36});
   if(r.shades)r.shades.visible=g.pose==='lie';
   if(g.pose==='lie'){g.o.position.addScaledVector(g.n,.1);r.legs.forEach(l=>l.rotation.set(-1.5,0,0));r.body.rotation.set(-1.02,0,0);r.body.position.set(0,.02,0);r.arms[0].rotation.set(-.15,0,-1.2);r.arms[1].rotation.set(-.15,0,1.2);r.head.rotation.set(0,0,0)}
   else if(g.pose==='sit'){const w=Math.sin(tw*6.5);/* Final chair-local placement is applied after the NPC animation. */r.legs.forEach(l=>l.rotation.set(-1.35,0,0));r.body.position.set(0,0,0);r.body.rotation.set(0,0,0);r.arms[0].rotation.set(-.45,0,-.28+w*.15);r.arms[1].rotation.set(-.45,0,.28-w*.15);r.head.rotation.set(.04,w*.1,w*.05)}
@@ -1008,9 +1013,9 @@ function npcUpdate(dt){
   const e=pa*(.55+.35*Math.sin(tw*14-1));r.tongue.scale.z=.02+e*1.9;r.tongue.position.z=.1+e*.08;r.tongue.rotation.x=e*.5;
   r.tail.rotation.x=d.pose==='sit'?.95:-.9;r.tail.rotation.z=d.pose==='sit'?-.5:0;
   r.tail.rotation.y=Math.sin(tw*(9+9*d.mv+(st==='sit'?4:0)+(st==='dash'?12:0)))*(st==='dash'?.95:.7);
-  if(d.pose==='sit'){r.tail.rotation.y=Math.sin(tw*6)*.1;r.body.rotation.set(-.95,0,0);r.body.scale.setScalar(1);r.body.position.y=0;r.head.rotation.set(.72,0,0);r.legs[0].rotation.x=.45;r.legs[1].rotation.x=.45;r.legs[2].rotation.x=1.25;r.legs[3].rotation.x=1.25}}
+  /* Supported chair pose is applied by teaGuestPose after all animations. */}
  {const r=cat.rig,ch=cat.mode==='chase';
-  if(cat.pose==='sit'){const face=faceTan(cat.n,teaRoot.userData.n);cat.f.copy(face);basisQ(cat.n,cat.f,cat.o.quaternion);/* Chair-local placement is shared by all four guests. */cat.o.scale.setScalar(1.35);r.legs[0].rotation.x=.5;r.legs[1].rotation.x=.5;r.legs[2].rotation.x=1.3;r.legs[3].rotation.x=1.3;r.body.position.y=0;r.body.rotation.set(-1.05,0,0);r.head.rotation.set(.8,Math.sin(tw*1.4)*.04,0);r.tail.rotation.x=1.05;r.tail.rotation.y=Math.sin(tw*4)*.12}
+  if(cat.pose==='sit'){cat.o.scale.setScalar(1.35);/* teaGuestPose supplies the supported upright pose. */}
   else{cat.o.scale.setScalar(1.35);cat.lk+=(((cat.mode==='lick'?1:0)-cat.lk)*Math.min(1,dt*5));cat.walk+=dt*(10+8*cat.sp)*(ch?1.25:1)*cat.mv;const sn=Math.sin(cat.walk),tr=sn*.9*cat.mv*(ch?1.3:1),lk=cat.lk;cat.hop=Math.max(0,cat.hop-dt);const hp=cat.hop>0?Math.sin(Math.PI*(1-cat.hop/.5)):0;
   r.legs[0].rotation.x=tr*(1-lk)-.5*hp+.2*lk;r.legs[1].rotation.x=-tr*(1-lk)-.5*hp+.2*lk;r.legs[2].rotation.x=-tr*(1-lk)+.6*hp+1.25*lk;r.legs[3].rotation.x=tr*(1-lk)+.6*hp;
   r.body.position.y=Math.abs(sn)*.05*cat.mv+.45*hp-.07*lk;r.body.rotation.x=-.35*hp-(ch?.28:0)+.2*lk;r.body.rotation.z=.35*lk;
@@ -1237,7 +1242,7 @@ function yawFlat(dir){const d=dir.clone();d.y=0;if(d.lengthSq()<1e-4)return yaw;
 function yawAlong(dir){return yawFlat(dir.clone().applyQuaternion(world.quaternion))}
 function focusN(n,z){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='cine';zt=z||.26;cine={n:n.clone(),pos:new T.Vector3()}}
 function clearWear(){for(const k of Object.keys(wearOn))wearOn[k]='';saveLook();applyLook()}
-function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rest=null;cine=null;if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
+function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
 function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.14,bed:pick.userData.bed};ring(n)}
 function alignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(up.lengthSq()<1e-8)return;up.normalize();const turn=new T.Quaternion().setFromUnitVectors(up,AY);world.quaternion.premultiply(turn).normalize()}
 function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const n=meshN(teaRoot.userData.chairs[chair]);auto={n,reach:.06,tea:chair};ring(n)}
@@ -1250,12 +1255,21 @@ function startCatTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.cat]);np
 function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,teaRoot.userData.tableSurface,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,teaRoot.userData.tableSurface,dp.z);rest.phase='party';rest.heartT=.15;focusN(teaRoot.userData.n,.5)}
 function relaxStep(c,tg,sp,dt){const n=c.n,f=c.f;vA.copy(tg).addScaledVector(n,-tg.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=5*dt;f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));if(sp>0){vC.crossVectors(n,f).normalize();const st=sp*dt*(Math.abs(ang)>1.2?.45:1);n.applyAxisAngle(vC,st);f.applyAxisAngle(vC,st)}n.normalize();f.addScaledVector(n,-f.dot(n)).normalize();return Math.acos(Math.min(1,n.dot(tg)))}
 function relaxMove(c,dt){const j=c.job;if(!j)return;c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';if(j.phase==='sit'||j.phase==='lie'){c.sp=0;c.mv=0;c.n.copy(j.n);if(j.face)c.f.copy(j.face);return}const tg=j.phase==='lap'?j.pts[j.i]:j.n;c.sp=j.sp||1;const left=relaxStep(c,tg,c.sp,dt);const near=j.phase==='lap'?.22:j.done==='lie'?.34:.18;if(left+1e-4<(j.best==null?9:j.best)){j.best=left;j.stuck=0}else j.stuck=(j.stuck||0)+dt;if(left<near||(j.stuck>1.4&&left<.7)){if(j.phase==='lap'){j.i++;j.best=null;j.stuck=0;if(j.i>=j.pts.length)j.phase='run'}else{j.phase=j.done||'sit';c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';c.n.copy(j.n);if(j.face)c.f.copy(j.face);c.sp=0;if(j.onArrive){const fn=j.onArrive;j.onArrive=null;fn()}}}}
-function spawnPartyHeartAt(n,base){const h=makeHeart();h.scale.set(.9,.9,1);const tng=new T.Vector3(1,0,0).addScaledVector(n,-n.x);if(tng.lengthSq()<1e-6)tng.set(0,0,1);tng.normalize();const bin=new T.Vector3().crossVectors(n,tng),ang=Math.random()*6.2832;const side=tng.multiplyScalar(Math.cos(ang)).addScaledVector(bin,Math.sin(ang)).normalize();h.position.copy(n).multiplyScalar(R+base);h.userData={age:0,n:n.clone(),side,base,lift:2.15+Math.random()*.45,drift:.02+Math.random()*.03,spin:Math.random()*6};world.add(h);partyHearts.push(h)}
-function spawnPartyHeart(){if(npcs.girl)spawnPartyHeartAt(npcs.girl.n,1.85);const up=new T.Vector3(0,1,0).applyQuaternion(qI.copy(world.quaternion).invert());spawnPartyHeartAt(up.normalize(),1.8)}
+/* Start at the actual seated head, not the globe's north pole. */
+function spawnPartyHeartAt(head,top){
+ const h=makeHeart(),origin=new T.Vector3((Math.random()-.5)*.25,top,0);
+ head.updateWorldMatrix(true,false);head.localToWorld(origin);world.worldToLocal(origin);
+ const up=new T.Vector3(0,1,0).applyQuaternion(teaRoot.quaternion).normalize();
+ const side=new T.Vector3(1,0,0).applyQuaternion(teaRoot.quaternion).normalize();
+ h.scale.setScalar(.42+Math.random()*.12);h.position.copy(origin);
+ h.userData={age:0,origin,up,side,life:2.8+Math.random()*.5,lift:.55+Math.random()*.15,drift:(Math.random()-.5)*.22,phase:Math.random()*Math.PI*2};
+ h.material.rotation=0;world.add(h);partyHearts.push(h);
+}
+function spawnPartyHeart(){if(npcs.girl)spawnPartyHeartAt(npcs.girl.rig.head,.9);spawnPartyHeartAt(boyHead,.9)}
 function relaxTick(dt){try{if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(n,.55);toast('여자아이도 누웠어요')}};focusN(n,.58)}}
  if(rest&&rest.kind==='tea'){if(rest.phase==='boy'){rest.t+=dt;if(rest.t>=3)startGirlTea()}else if(rest.phase==='waitcat'){rest.t+=dt;if(rest.t>=2)startCatTea()}else if(rest.phase==='party'){rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=1;spawnPartyHeart()}}}
- for(let i=partyHearts.length-1;i>=0;i--){const h=partyHearts[i],u=h.userData;u.age+=dt;h.position.copy(u.n).multiplyScalar(R+u.base+u.age*u.lift).addScaledVector(u.side,u.age*u.drift);h.material.opacity=Math.max(0,1-u.age/2);h.material.rotation=u.spin+u.age*2;if(u.age>=2){h.parent&&h.parent.remove(h);h.material.dispose();partyHearts.splice(i,1)}}}catch(e){}}
-function relaxPose(){if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}if(rest.kind==='bed'&&(rest.phase==='lie'||rest.phase==='girl')){const bed=bedRoot.userData.beds[rest.bed],q=new T.Quaternion(),ax=new T.Vector3(0,0,-1);bed.getWorldQuaternion(q);ax.applyQuaternion(q);yaw=yawFlat(ax);boy.rotation.y=yaw;boy.position.y=R+.04;body.rotation.set(-1.02,0,0);body.position.set(0,.02,0);legs.forEach(l=>l.rotation.set(-1.5,0,0));arms[0].rotation.set(-.15,0,-1.2);arms[1].rotation.set(-.15,0,1.2);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true}else{if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.56;l.rotation.set(-1.35,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}}}
+ for(let i=partyHearts.length-1;i>=0;i--){const h=partyHearts[i],u=h.userData;u.age+=dt;h.position.copy(u.origin).addScaledVector(u.up,u.age*u.lift).addScaledVector(u.side,u.age*u.drift+.09*(Math.sin(u.age*1.8+u.phase)-Math.sin(u.phase)));h.material.opacity=Math.min(1,u.age/.18)*Math.min(1,Math.max(0,(u.life-u.age)/.85));h.material.rotation=.12*Math.sin(u.age*1.6+u.phase);if(u.age>=u.life){h.parent&&h.parent.remove(h);h.material.dispose();partyHearts.splice(i,1)}}}catch(e){}}
+function relaxPose(){if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}if(rest.kind==='bed'&&(rest.phase==='lie'||rest.phase==='girl')){const bed=bedRoot.userData.beds[rest.bed],q=new T.Quaternion(),ax=new T.Vector3(0,0,-1);bed.getWorldQuaternion(q);ax.applyQuaternion(q);yaw=yawFlat(ax);boy.rotation.y=yaw;boy.position.y=R+.04;body.rotation.set(-1.02,0,0);body.position.set(0,.02,0);legs.forEach(l=>l.rotation.set(-1.5,0,0));arms[0].rotation.set(-.15,0,-1.2);arms[1].rotation.set(-.15,0,1.2);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true}else{if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.36;l.rotation.set(-Math.PI/2,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}}}
 /* Chair surfaces, feet and seated guests use the SAME table-local frame.
    A radial offset from R cannot match a chair away from the table centre. */
 const teaSeatPoint=new T.Vector3(),teaSeatQ=new T.Quaternion(),teaSeatInv=new T.Matrix4(),teaVertex=new T.Vector3(),teaMeshMatrix=new T.Matrix4();
@@ -1273,16 +1287,70 @@ function teaContactHeight(o,rig,pet){
 function placeTeaGuest(o,rig,seat,pet=false){
  const chair=teaRoot.userData.chairs[seat],height=teaContactHeight(o,rig,pet);
  chair.updateWorldMatrix(true,false);
- teaSeatPoint.set(0,chair.userData.seatTop-height*o.scale.y,pet?(rig.jaw ? .24 : .12):0);
+ teaSeatPoint.set(0,chair.userData.seatTop-height*o.scale.y,pet?(rig.jaw ? .24 : .12):.24);
  chair.localToWorld(teaSeatPoint);chair.getWorldQuaternion(teaSeatQ);
  o.parent.worldToLocal(teaSeatPoint);o.position.copy(teaSeatPoint);
  const parentQ=new T.Quaternion();o.parent.getWorldQuaternion(parentQ);
  o.quaternion.copy(parentQ.invert()).multiply(teaSeatQ);
 }
+/* Separate thigh/knee/shin geometry is used only for the tea pose.
+   Walking, jumping, rides and lying keep their original leg geometry. */
+function resetTeaRig(rig){
+ if(!rig||!rig.legs)return;
+ for(const l of rig.legs){const saved=l.userData.teaRest;if(saved){l.position.copy(saved.position);l.scale.copy(saved.scale);l.rotation.set(0,0,0)}
+  const seated=l.userData.teaSeated;if(seated){l.children.forEach(c=>{c.visible=c!==seated});seated.visible=false}}
+}
+function teaHumanLegs(rig,girl=false){
+ rig.legs.forEach(l=>{
+  if(!l.userData.teaRest)l.userData.teaRest={position:l.position.clone().setY(.36),scale:l.scale.clone()};
+  let seated=l.userData.teaSeated;
+  if(!seated){
+   const originals=l.children.slice(),thigh=girl?.46:.44,shin=girl?.28:.30;
+   seated=new T.Group();seated.name='tea-seated-leg';
+   const radius=girl?.075:.11;
+   mk(new T.CylinderGeometry(radius,radius,thigh,10),originals[0].material,0,-thigh/2,0,seated);
+   const knee=new T.Group();knee.position.y=-thigh;knee.rotation.x=Math.PI/2;seated.add(knee);
+   mk(new T.CylinderGeometry(radius*.9,radius*.9,shin,10),originals[0].material,0,-shin/2,0,knee);
+   if(girl)mk(new T.CylinderGeometry(.085,.085,.10,10),originals[1].material,0,-shin+.04,0,knee);
+   const shoe=originals[originals.length-1].clone();shoe.position.set(0,-shin,.05);knee.add(shoe);
+   l.add(seated);l.userData.teaSeated=seated;
+  }
+  l.children.forEach(c=>{c.visible=c===seated});l.position.y=.36;l.rotation.set(-Math.PI/2,0,0);
+ });
+}
+/* Rotate around the haunches; counter-transform the limbs so the forepaws
+   stay directly below the shoulders on the same support plane as the rump. */
+function teaPetPose(rig,cat=false){
+ const pivot=new T.Vector3(0,cat?.28:.46,cat?-.18:-.30);
+ rig.body.rotation.set(cat?-.95:-.90,0,0);rig.body.scale.setScalar(1);
+ rig.body.position.copy(pivot).sub(pivot.clone().applyEuler(rig.body.rotation));
+ rig.body.updateMatrix();
+ const support=teaContactHeight(rig.o,{body:rig.body,legs:[]},true);
+ const inverse=rig.body.matrix.clone().invert(),inverseQ=rig.body.quaternion.clone().invert();
+ rig.legs.forEach((l,i)=>{
+  if(!l.userData.teaRest)l.userData.teaRest={position:l.position.clone(),scale:l.scale.clone()};
+  const saved=l.userData.teaRest,front=i<2,rootQ=new T.Quaternion();
+  let shoulder=saved.position.clone().applyMatrix4(rig.body.matrix);
+  if(front){
+   const footDrop=cat?.145:.3895;
+   l.scale.set(1,Math.max(.2,(shoulder.y-support)/footDrop),1);
+  }else{
+   rootQ.setFromAxisAngle(new T.Vector3(1,0,0),-Math.PI/2);
+   shoulder.set(saved.position.x*(cat?1.35:1.1),support+(cat?.04:.075),cat?-.25:-.38);
+   l.scale.copy(saved.scale);
+  }
+  l.position.copy(shoulder.applyMatrix4(inverse));l.quaternion.copy(inverseQ).multiply(rootQ);
+ });
+ rig.head.rotation.set(cat?.88:.82,Math.sin(tw*1.4)*.035,0);
+ rig.tail.rotation.set(cat?1.05:.95,Math.sin(tw*4)*.10,cat?0:-.5);
+}
 function teaGuestPose(){
  if(!rest||rest.kind!=='tea')return;
- placeTeaGuest(boy,{body},rest.seats.boy);
- for(const id of ['girl','dog','cat']){const c=npcs[id];if(c&&c.pose==='sit')placeTeaGuest(c.o,c.rig,rest.seats[id],id!=='girl')}
+ teaHumanLegs({legs});placeTeaGuest(boy,{body},rest.seats.boy);
+ for(const id of ['girl','dog','cat']){const c=npcs[id];if(c&&c.pose==='sit'){
+  if(id==='girl')teaHumanLegs(c.rig,true);else teaPetPose(c.rig,id==='cat');
+  placeTeaGuest(c.o,c.rig,rest.seats[id],id!=='girl');
+ }}
 }
 /* Raycast the actual triangulated globe, not just a tangent plane.  Each
    upright leg ends slightly inside the ground to avoid a visible light gap. */
@@ -1374,7 +1442,7 @@ const clock=new T.Clock(),AY=new T.Vector3(0,1,0),axis=new T.Vector3(),q=new T.Q
 const look=new T.Vector3(0,2,0),dir=new T.Vector3(-.09,.5,.86).normalize(),camDir=dir.clone(),swingDir=new T.Vector3(-.28,.4,1).normalize();
 function resize(){const w=innerWidth,h=innerHeight;rd.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();rd.getDrawingBufferSize(U.uR.value);bgC.left=-cam.aspect;bgC.right=cam.aspect;bgC.updateProjectionMatrix();fxResize();k=Math.max(1,Math.pow(.95/cam.aspect,.8))}
 addEventListener('resize',resize);
-function frame(){requestAnimationFrame(frame);if(halted)return;const dt=Math.min(clock.getDelta(),.05);tw+=dt;
+function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const dt=Math.min(clock.getDelta(),.05);tw+=dt;
  const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
@@ -1407,9 +1475,24 @@ function frame(){requestAnimationFrame(frame);if(halted)return;const dt=Math.min
   markers.forEach((o,i)=>{o.m.position.y=o.y+Math.sin(tw*3+i)*.1;o.m.rotation.y+=dt*2});
  cl.copy(cam.position);world.worldToLocal(cl);
  spotObjs.forEach(o=>{basisQ(o.userData.n,cl,q2);o.quaternion.slerp(q2,Math.min(1,dt*5))});
- near=null;if(!modalOpen){let best=9;for(const o of spotObjs){tmp.copy(o.userData.n).applyQuaternion(world.quaternion);const a=Math.acos(Math.min(1,tmp.y)),r=SPOTS[o.userData.spot].reach+.1;if(a<r&&a<best){best=a;near=o.userData.spot}}}
- nearRide=null;if(!near&&!ride&&!modalOpen){let best=9;for(const o of rides){tmp.copy(o.userData.stand||o.userData.n).applyQuaternion(world.quaternion);const a=Math.acos(Math.min(1,tmp.y));if(a<.36&&a<best){best=a;nearRide=o}}}
- const ab=$('#act');if(near){const sp=SPOTS[near];ab.hidden=false;ab.textContent=`${sp.icon} ${sp.name} 열기`}else if(nearRide){ab.hidden=false;ab.textContent=nearRide.userData.ride==='slide'?'🛝 미끄럼 타기':'🛝 그네 타기'}else ab.hidden=true;
+ // Shops and facilities share one nearest-target selection, so a nearby shop
+ // cannot mask the action for the swing, slide, chair or sunbed beside it.
+ near=null;nearRide=null;nearRelax=null;
+ if(!ride&&!rest&&!lying&&!snack&&!modalOpen){
+  let best=Infinity;
+  const distance=n=>{tmp.copy(n).applyQuaternion(world.quaternion);return Math.acos(T.MathUtils.clamp(tmp.y,-1,1))};
+  for(const o of spotObjs){const a=distance(o.userData.n);if(a<SPOTS[o.userData.spot].reach+.1&&a<best){best=a;near=o.userData.spot}}
+  for(const o of rides){const a=distance(o.userData.stand||o.userData.n);if(a<.36&&a<best){best=a;nearRide=o;near=null}}
+  for(const hit of relaxHits){
+   const target=hit.userData.relax==='bed'?(hit.parent.userData.foot||hit.parent):hit.parent;
+   const a=distance(meshN(target));
+   if(a<.36&&a<best){best=a;nearRelax=hit;nearRide=null;near=null}
+  }
+ }
+ const ab=$('#act');if(near){const sp=SPOTS[near];ab.hidden=false;ab.textContent=`${sp.icon} ${sp.name} 열기`}
+ else if(nearRide){ab.hidden=false;ab.textContent=nearRide.userData.ride==='slide'?'🛝 미끄럼틀 타기':'🎠 그네 타기'}
+ else if(nearRelax){ab.hidden=false;ab.textContent=nearRelax.userData.relax==='tea'?'🪑 4인 테이블 앉기':'🛏️ 썬베드 눕기'}
+ else ab.hidden=true;
  if(started&&intro<1)intro=Math.min(1,intro+dt/3);const e=1-Math.pow(1-intro,3);zm+=(zt-zm)*Math.min(1,dt*8);
  const swingOn=zoomKind==='swing'&&(!!ride||(auto&&auto.ride==='swing')),slideOn=zoomKind==='slide'&&!swingOn;
  const lookK=Math.min(1,dt*3.2);
