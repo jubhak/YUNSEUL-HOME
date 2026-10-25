@@ -534,12 +534,21 @@ function makeHeartShades(){const g=new T.Group(),red=M(0xff2438,{roughness:.3}),
  });
  mk(new T.BoxGeometry(.1,.05,.06),red,0,.18,.68,g);
  g.traverse(o=>{o.castShadow=o.receiveShadow=false});g.visible=false;return g}
-function makeFaceBook(){const g=new T.Group(),cover=M(0x3a6fd8,{roughness:.5}),page=M(0xfff8ee,{roughness:.75}),band=M(0xffe08a,{roughness:.45});
- mk(new T.BoxGeometry(1.08,1.32,.12),cover,0,.04,.74,g);
- mk(new T.BoxGeometry(.94,1.18,.02),page,.03,.04,.81,g);
- mk(new T.BoxGeometry(.62,.09,.016),band,0,.32,.83,g);
- mk(new T.BoxGeometry(.4,.07,.016),band,0,-.18,.83,g);
- g.traverse(o=>{o.castShadow=o.receiveShadow=false});g.visible=false;return g}
+function makeFaceBook(){
+ const g=new T.Group(),cover=M(0x3a6fd8,{roughness:.5}),page=M(0xfff8ee,{roughness:.85}),ink=M(0x718398),gold=M(0xffcf72);
+ g.name='open-face-magazine';
+ // Two wide, almost-flat pages, joined at the spine and resting over the face.
+ [-1,1].forEach(side=>{
+  const leaf=new T.Group();leaf.position.set(0,.02,.72);leaf.rotation.y=side*.08;g.add(leaf);
+  mk(new T.BoxGeometry(.76,1.02,.025),cover,side*.38,0,0,leaf);
+  mk(new T.BoxGeometry(.72,.97,.012),page,side*.38,0,.02,leaf);
+  mk(new T.BoxGeometry(.59,.19,.008),gold,side*.38,.29,.031,leaf);
+  mk(new T.BoxGeometry(.27,.25,.008),cover,side*.52,.01,.031,leaf);
+  for(let i=0;i<6;i++)mk(new T.BoxGeometry(i<3?.25:.59,.016,.008),ink,side*(i<3?.22:.38),.10-i*.085,.032,leaf);
+ });
+ mk(new T.BoxGeometry(.025,1.02,.03),cover,0,.02,.72,g);
+ g.traverse(o=>{o.castShadow=o.receiveShadow=false});g.visible=false;return g;
+}
 function buildBoy(){
  const g=new T.Group(),sk=M(0xffd9b8,{roughness:.6}),sh=M(0xff7a59),pa=M(0x3b6ea5),ha=M(0x4a2f20),wh=M(0xffffff),dk=new T.MeshBasicMaterial({color:0x2a1a14});
  body=new T.Group();g.add(body);
@@ -1000,7 +1009,7 @@ function npcUpdate(dt){
   else if(g.pose==='sit'){const w=Math.sin(tw*6.5);/* Final chair-local placement is applied after the NPC animation. */r.legs.forEach(l=>l.rotation.set(-1.35,0,0));r.body.position.set(0,0,0);r.body.rotation.set(0,0,0);r.arms[0].rotation.set(-.45,0,-.28+w*.15);r.arms[1].rotation.set(-.45,0,.28-w*.15);r.head.rotation.set(.04,w*.1,w*.05)}
   else{g.walk+=dt*10*g.mv;const s=Math.sin(g.walk);r.legs[0].rotation.x=s*.8*g.mv;r.legs[1].rotation.x=-s*.8*g.mv;r.arms[0].rotation.x=-s*.7*g.mv;r.arms[1].rotation.x=s*.7*g.mv;
   r.arms[1].rotation.z+=((g.wave&&g.mv<.2?2.5+Math.sin(tw*9)*.3:0)-r.arms[1].rotation.z)*Math.min(1,dt*10);
-  r.body.position.y=Math.abs(s)*.06*g.mv+Math.sin(tw*2+1)*.012;r.body.rotation.set(0,0,0);r.head.rotation.set(0,0,0)}}
+  r.body.position.set(0,Math.abs(s)*.06*g.mv+Math.sin(tw*2+1)*.012,0);r.body.rotation.set(0,0,0);r.head.rotation.set(0,0,0)}}
  {const r=d.rig,st=d.st,k=Math.min(1,dt*6);if(d.pose==='sit'){d.lay=0}d.sit+=((st==='sit'?1:0)-d.sit)*k;d.lay+=((st==='roll'?1:0)-d.lay)*Math.min(1,dt*3.5);
   d.walk+=dt*(9+8*d.sp)*(st==='dash'?1.3:1)*d.mv;const s=Math.sin(d.walk),tr=s*.9*d.mv*(1-d.sit)*(1-d.lay),sw=Math.sin(tw*6)*.7*d.lay;
   d.barkP=Math.max(0,d.barkP-dt);const bk=d.barkP>0?1:0,pa=st==='dash'||st==='pant'?1:st==='sit'?.7:st==='run'?1:st==='roll'?.6:st==='orbit'?.35:0;
@@ -1240,13 +1249,13 @@ function meshN(obj){obj.updateWorldMatrix(true,false);obj.getWorldPosition(_rn);
 function faceTan(n,toward){const f=toward.clone().addScaledVector(n,-toward.dot(n));if(f.lengthSq()<1e-6){const t=new T.Vector3(1,0,0);f.copy(t).addScaledVector(n,-t.dot(n))}return f.normalize()}
 function yawFlat(dir){const d=dir.clone();d.y=0;if(d.lengthSq()<1e-4)return yaw;d.normalize();return Math.atan2(-d.x,-d.z)}
 function yawAlong(dir){return yawFlat(dir.clone().applyQuaternion(world.quaternion))}
-function focusN(n,z){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='cine';zt=z||.26;cine={n:n.clone(),pos:new T.Vector3()}}
+function focusN(n,z){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='cine';zt=z||.26;cine={n:(rest&&rest.kind==='tea'?teaRoot.userData.n:n).clone(),pos:new T.Vector3()}}
 function clearWear(){for(const k of Object.keys(wearOn))wearOn[k]='';saveLook();applyLook()}
-function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
+function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);for(const c of Object.values(npcs)){if(c.pose==='lie')c.rig.body.position.set(0,0,0)}rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
 function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.14,bed:pick.userData.bed};ring(n)}
 function alignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(up.lengthSq()<1e-8)return;up.normalize();const turn=new T.Quaternion().setFromUnitVectors(up,AY);world.quaternion.premultiply(turn).normalize()}
 function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const n=meshN(teaRoot.userData.chairs[chair]);auto={n,reach:.06,tea:chair};ring(n)}
-function beginBed(index){clearWear();const beds=bedRoot.userData.beds;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false};focusN(meshN(beds[index]),.62);toast('썬베드에 누웠어요')}
+function beginBed(index){clearWear();const beds=bedRoot.userData.beds;alignUp(meshN(beds[index]));jh=0;jv=0;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false};focusN(meshN(beds[index]),.62);toast('썬베드에 누웠어요')}
 function assignSeats(clicked){const used=new Set([clicked]);const take=p=>{if(!used.has(p)){used.add(p);return p}for(let i=0;i<4;i++)if(!used.has(i)){used.add(i);return i}return 0};return {boy:clicked,girl:take((clicked+2)%4),dog:take(1),cat:take((clicked+3)%4)}}
 function beginTeaSit(chair){const seats=assignSeats(chair),ch=teaRoot.userData.chairs[seats.boy],n=meshN(ch);alignUp(n);rest={kind:'tea',phase:'boy',t:0,seats,heartT:.2,yaw:yawAlong(faceTan(n,teaRoot.userData.n))+Math.PI};focusN(n,.46);toast('의자에 앉았어요')}
 function startGirlTea(){const tableN=teaRoot.userData.n,chair=teaRoot.userData.chairs[rest.seats.girl],n=meshN(chair);npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:1.7,onArrive(){if(!rest)return;rest.phase='dog';rest.t=0;focusN(n,.32);startDogTea()}};rest.phase='girl';focusN(npcs.girl.n,.34)}
@@ -1269,7 +1278,44 @@ function spawnPartyHeart(){if(npcs.girl)spawnPartyHeartAt(npcs.girl.rig.head,.9)
 function relaxTick(dt){try{if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(n,.55);toast('여자아이도 누웠어요')}};focusN(n,.58)}}
  if(rest&&rest.kind==='tea'){if(rest.phase==='boy'){rest.t+=dt;if(rest.t>=3)startGirlTea()}else if(rest.phase==='waitcat'){rest.t+=dt;if(rest.t>=2)startCatTea()}else if(rest.phase==='party'){rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=1;spawnPartyHeart()}}}
  for(let i=partyHearts.length-1;i>=0;i--){const h=partyHearts[i],u=h.userData;u.age+=dt;h.position.copy(u.origin).addScaledVector(u.up,u.age*u.lift).addScaledVector(u.side,u.age*u.drift+.09*(Math.sin(u.age*1.8+u.phase)-Math.sin(u.phase)));h.material.opacity=Math.min(1,u.age/.18)*Math.min(1,Math.max(0,(u.life-u.age)/.85));h.material.rotation=.12*Math.sin(u.age*1.6+u.phase);if(u.age>=u.life){h.parent&&h.parent.remove(h);h.material.dispose();partyHearts.splice(i,1)}}}catch(e){}}
-function relaxPose(){if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}if(rest.kind==='bed'&&(rest.phase==='lie'||rest.phase==='girl')){const bed=bedRoot.userData.beds[rest.bed],q=new T.Quaternion(),ax=new T.Vector3(0,0,-1);bed.getWorldQuaternion(q);ax.applyQuaternion(q);yaw=yawFlat(ax);boy.rotation.y=yaw;boy.position.y=R+.04;body.rotation.set(-1.02,0,0);body.position.set(0,.02,0);legs.forEach(l=>l.rotation.set(-1.5,0,0));arms[0].rotation.set(-.15,0,-1.2);arms[1].rotation.set(-.15,0,1.2);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true}else{if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.36;l.rotation.set(-Math.PI/2,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}}}
+/* Both rigs are placed in the bed's frame, after NPC/walking animations.
+   The torso hinges at the SAME hip as the separate root-level legs. */
+function placeBedGuest(o,rig,bed){
+ resetTeaRig(rig);
+ const hip=.36,tilt=-.95;
+ rig.body.rotation.set(tilt,0,0);
+ const pivot=new T.Vector3(0,hip,0);
+ rig.body.position.copy(pivot).sub(pivot.clone().applyEuler(rig.body.rotation));
+ rig.legs.forEach(l=>{l.position.y=hip;l.rotation.set(-Math.PI/2,0,0)});
+ rig.arms[0].rotation.set(-.05,0,-.22);rig.arms[1].rotation.set(-.05,0,.22);
+ if(rig.head)rig.head.rotation.set(0,0,0);
+ bed.updateWorldMatrix(true,false);
+ const size=bed.getWorldScale(new T.Vector3()),scale=o.scale.y/size.y;
+ // Derive clearance from the actual shoe/leg geometry, not the globe radius.
+ o.position.set(0,0,0);o.rotation.set(0,0,0);o.updateWorldMatrix(true,true);
+ const inv=o.matrixWorld.clone().invert(),v=new T.Vector3(),matrix=new T.Matrix4();let low=Infinity;
+ rig.legs.forEach(l=>l.children.filter(c=>c.visible).forEach(child=>child.traverse(m=>{if(!m.isMesh||!m.visible)return;
+  matrix.multiplyMatrices(inv,m.matrixWorld);const a=m.geometry.attributes.position;
+  for(let i=0;i<a.count;i++){v.fromBufferAttribute(a,i).applyMatrix4(matrix);low=Math.min(low,v.y)}
+ })));
+ const point=new T.Vector3(0,.4225+.018-low*scale,.35);
+ bed.localToWorld(point);o.parent.worldToLocal(point);o.position.copy(point);
+ const parentQ=new T.Quaternion();o.parent.getWorldQuaternion(parentQ);
+ bed.getWorldQuaternion(o.quaternion);o.quaternion.premultiply(parentQ.invert());
+}
+function relaxPose(){
+ if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}
+ if(rest.kind==='bed'){
+  const bed=bedRoot.userData.beds[rest.bed];
+  placeBedGuest(boy,{body,legs,arms,head:boyHead},bed);
+  if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true;
+  const girl=npcs.girl;
+  if(girl&&girl.pose==='lie')placeBedGuest(girl.o,girl.rig,bedRoot.userData.beds[1-rest.bed]);
+ }else{
+  if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;
+  if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.36;l.rotation.set(-Math.PI/2,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}
+ }
+}
 /* Chair surfaces, feet and seated guests use the SAME table-local frame.
    A radial offset from R cannot match a chair away from the table centre. */
 const teaSeatPoint=new T.Vector3(),teaSeatQ=new T.Quaternion(),teaSeatInv=new T.Matrix4(),teaVertex=new T.Vector3(),teaMeshMatrix=new T.Matrix4();
@@ -1496,7 +1542,14 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
  if(started&&intro<1)intro=Math.min(1,intro+dt/3);const e=1-Math.pow(1-intro,3);zm+=(zt-zm)*Math.min(1,dt*8);
  const swingOn=zoomKind==='swing'&&(!!ride||(auto&&auto.ride==='swing')),slideOn=zoomKind==='slide'&&!swingOn;
  const lookK=Math.min(1,dt*3.2);
- if(cine){cine.pos.copy(cine.n).multiplyScalar(R+1.45).applyQuaternion(world.quaternion);look.lerp(cine.pos,lookK)}
+ if(cine){
+  if(rest&&rest.kind==='tea'){
+   // Keep the table in view while friends approach, including from below the globe.
+   teaRoot.updateWorldMatrix(true,false);cine.pos.set(0,teaRoot.userData.tableSurface+.55,0);teaRoot.localToWorld(cine.pos);
+   cine.pos.y=Math.max(cine.pos.y,look.y);
+  }else cine.pos.copy(cine.n).multiplyScalar(R+1.45).applyQuaternion(world.quaternion);
+  look.lerp(cine.pos,lookK);
+ }
  else{const ty=snack?snack.look:swingOn?8.6:slideOn?7.15:2;look.x+=(0-look.x)*lookK;look.z+=(0-look.z)*lookK;look.y+=(ty-look.y)*lookK}
  camDir.lerp(swingOn?swingDir:dir,Math.min(1,dt*2.6)).normalize();
  dkv=dkT?Math.min(1,dkv+dt/1.5):Math.max(0,dkv-dt/1.3);const dk1=ease(Math.min(1,dkv*2)),dk2=ease(Math.max(0,dkv*2-1)),wide=innerWidth>=760;
