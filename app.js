@@ -989,13 +989,14 @@ function npcUpdate(dt){
   sep(cat,pn,.17);sep(cat,g.n,.13);if(cat.mode!=='lick')sep(cat,d.n,.12)}
  for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){c.st='orbit';c.sit=0;c.lay=0}if(id==='girl')c.wave=false}basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
  {const r=g.rig;
+  r.legs.forEach(l=>{l.position.y=g.pose==='sit'?.64:.36});
   if(r.shades)r.shades.visible=g.pose==='lie';
   if(g.pose==='lie'){g.o.position.addScaledVector(g.n,.1);r.legs.forEach(l=>l.rotation.set(-1.5,0,0));r.body.rotation.set(-1.02,0,0);r.body.position.set(0,.02,0);r.arms[0].rotation.set(-.15,0,-1.2);r.arms[1].rotation.set(-.15,0,1.2);r.head.rotation.set(0,0,0)}
-  else if(g.pose==='sit'){const w=Math.sin(tw*6.5);g.o.position.addScaledVector(g.n,.52);r.legs.forEach(l=>l.rotation.set(-1.35,0,0));r.body.position.set(0,0,0);r.body.rotation.set(.05,w*.06,w*.05);r.arms[0].rotation.set(-.45,0,-.28+w*.15);r.arms[1].rotation.set(-.45,0,.28-w*.15);r.head.rotation.set(.04,w*.1,w*.05)}
+  else if(g.pose==='sit'){const w=Math.sin(tw*6.5);/* Final chair-local placement is applied after the NPC animation. */r.legs.forEach(l=>l.rotation.set(-1.35,0,0));r.body.position.set(0,0,0);r.body.rotation.set(0,0,0);r.arms[0].rotation.set(-.45,0,-.28+w*.15);r.arms[1].rotation.set(-.45,0,.28-w*.15);r.head.rotation.set(.04,w*.1,w*.05)}
   else{g.walk+=dt*10*g.mv;const s=Math.sin(g.walk);r.legs[0].rotation.x=s*.8*g.mv;r.legs[1].rotation.x=-s*.8*g.mv;r.arms[0].rotation.x=-s*.7*g.mv;r.arms[1].rotation.x=s*.7*g.mv;
   r.arms[1].rotation.z+=((g.wave&&g.mv<.2?2.5+Math.sin(tw*9)*.3:0)-r.arms[1].rotation.z)*Math.min(1,dt*10);
   r.body.position.y=Math.abs(s)*.06*g.mv+Math.sin(tw*2+1)*.012;r.body.rotation.set(0,0,0);r.head.rotation.set(0,0,0)}}
- {const r=d.rig,st=d.st,k=Math.min(1,dt*6);if(d.pose==='sit'){d.o.position.addScaledVector(d.n,1.18);d.lay=0}d.sit+=((st==='sit'?1:0)-d.sit)*k;d.lay+=((st==='roll'?1:0)-d.lay)*Math.min(1,dt*3.5);
+ {const r=d.rig,st=d.st,k=Math.min(1,dt*6);if(d.pose==='sit'){d.lay=0}d.sit+=((st==='sit'?1:0)-d.sit)*k;d.lay+=((st==='roll'?1:0)-d.lay)*Math.min(1,dt*3.5);
   d.walk+=dt*(9+8*d.sp)*(st==='dash'?1.3:1)*d.mv;const s=Math.sin(d.walk),tr=s*.9*d.mv*(1-d.sit)*(1-d.lay),sw=Math.sin(tw*6)*.7*d.lay;
   d.barkP=Math.max(0,d.barkP-dt);const bk=d.barkP>0?1:0,pa=st==='dash'||st==='pant'?1:st==='sit'?.7:st==='run'?1:st==='roll'?.6:st==='orbit'?.35:0;
   r.legs[0].rotation.x=tr+.6*d.sit+sw;r.legs[1].rotation.x=-tr+.6*d.sit-sw;r.legs[2].rotation.x=-tr-.9*d.sit+sw*1.2;r.legs[3].rotation.x=tr-.9*d.sit-sw*1.2;
@@ -1005,10 +1006,11 @@ function npcUpdate(dt){
   r.head.rotation.x=Math.sin(tw*2)*.05-.4*bk;r.head.rotation.z=Math.sin(tw*1.3)*.08;
   r.jaw.rotation.x=Math.max(pa*(.12+.1*Math.sin(tw*14)),bk*.5);
   const e=pa*(.55+.35*Math.sin(tw*14-1));r.tongue.scale.z=.02+e*1.9;r.tongue.position.z=.1+e*.08;r.tongue.rotation.x=e*.5;
+  r.tail.rotation.x=d.pose==='sit'?.95:-.9;r.tail.rotation.z=d.pose==='sit'?-.5:0;
   r.tail.rotation.y=Math.sin(tw*(9+9*d.mv+(st==='sit'?4:0)+(st==='dash'?12:0)))*(st==='dash'?.95:.7);
-  if(d.pose==='sit'){r.body.rotation.set(-.95,0,0);r.body.position.y=0;r.head.rotation.set(.72,0,0);r.legs[0].rotation.x=.45;r.legs[1].rotation.x=.45;r.legs[2].rotation.x=1.25;r.legs[3].rotation.x=1.25}}
+  if(d.pose==='sit'){r.tail.rotation.y=Math.sin(tw*6)*.1;r.body.rotation.set(-.95,0,0);r.body.scale.setScalar(1);r.body.position.y=0;r.head.rotation.set(.72,0,0);r.legs[0].rotation.x=.45;r.legs[1].rotation.x=.45;r.legs[2].rotation.x=1.25;r.legs[3].rotation.x=1.25}}
  {const r=cat.rig,ch=cat.mode==='chase';
-  if(cat.pose==='sit'){const face=faceTan(cat.n,teaRoot.userData.n);cat.f.copy(face);basisQ(cat.n,cat.f,cat.o.quaternion);cat.o.position.copy(cat.n).multiplyScalar(R).addScaledVector(cat.n,1.02);cat.o.scale.setScalar(1.35);r.legs[0].rotation.x=.5;r.legs[1].rotation.x=.5;r.legs[2].rotation.x=1.3;r.legs[3].rotation.x=1.3;r.body.position.y=0;r.body.rotation.set(-1.05,0,0);r.head.rotation.set(.8,Math.sin(tw*1.4)*.04,0);r.tail.rotation.x=-.5;r.tail.rotation.y=Math.sin(tw*4)*.25}
+  if(cat.pose==='sit'){const face=faceTan(cat.n,teaRoot.userData.n);cat.f.copy(face);basisQ(cat.n,cat.f,cat.o.quaternion);/* Chair-local placement is shared by all four guests. */cat.o.scale.setScalar(1.35);r.legs[0].rotation.x=.5;r.legs[1].rotation.x=.5;r.legs[2].rotation.x=1.3;r.legs[3].rotation.x=1.3;r.body.position.y=0;r.body.rotation.set(-1.05,0,0);r.head.rotation.set(.8,Math.sin(tw*1.4)*.04,0);r.tail.rotation.x=1.05;r.tail.rotation.y=Math.sin(tw*4)*.12}
   else{cat.o.scale.setScalar(1.35);cat.lk+=(((cat.mode==='lick'?1:0)-cat.lk)*Math.min(1,dt*5));cat.walk+=dt*(10+8*cat.sp)*(ch?1.25:1)*cat.mv;const sn=Math.sin(cat.walk),tr=sn*.9*cat.mv*(ch?1.3:1),lk=cat.lk;cat.hop=Math.max(0,cat.hop-dt);const hp=cat.hop>0?Math.sin(Math.PI*(1-cat.hop/.5)):0;
   r.legs[0].rotation.x=tr*(1-lk)-.5*hp+.2*lk;r.legs[1].rotation.x=-tr*(1-lk)-.5*hp+.2*lk;r.legs[2].rotation.x=-tr*(1-lk)+.6*hp+1.25*lk;r.legs[3].rotation.x=tr*(1-lk)+.6*hp;
   r.body.position.y=Math.abs(sn)*.05*cat.mv+.45*hp-.07*lk;r.body.rotation.x=-.35*hp-(ch?.28:0)+.2*lk;r.body.rotation.z=.35*lk;
@@ -1235,7 +1237,7 @@ function yawFlat(dir){const d=dir.clone();d.y=0;if(d.lengthSq()<1e-4)return yaw;
 function yawAlong(dir){return yawFlat(dir.clone().applyQuaternion(world.quaternion))}
 function focusN(n,z){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='cine';zt=z||.26;cine={n:n.clone(),pos:new T.Vector3()}}
 function clearWear(){for(const k of Object.keys(wearOn))wearOn[k]='';saveLook();applyLook()}
-function endRest(){if(!rest&&!cine)return;rest=null;cine=null;if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>l.rotation.set(0,0,0));arms.forEach(a=>a.rotation.set(0,0,0))}
+function endRest(){if(!rest&&!cine)return;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);rest=null;cine=null;if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose=''}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
 function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.14,bed:pick.userData.bed};ring(n)}
 function alignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(up.lengthSq()<1e-8)return;up.normalize();const turn=new T.Quaternion().setFromUnitVectors(up,AY);world.quaternion.premultiply(turn).normalize()}
 function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const n=meshN(teaRoot.userData.chairs[chair]);auto={n,reach:.06,tea:chair};ring(n)}
@@ -1245,7 +1247,7 @@ function beginTeaSit(chair){const seats=assignSeats(chair),ch=teaRoot.userData.c
 function startGirlTea(){const tableN=teaRoot.userData.n,chair=teaRoot.userData.chairs[rest.seats.girl],n=meshN(chair);npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:1.7,onArrive(){if(!rest)return;rest.phase='dog';rest.t=0;focusN(n,.32);startDogTea()}};rest.phase='girl';focusN(npcs.girl.n,.34)}
 function startDogTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.dog]);npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.45,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0;focusN(n,.3)}};rest.phase='dog';focusN(npcs.dog.n,.32)}
 function startCatTea(){const n=meshN(teaRoot.userData.chairs[rest.seats.cat]);npcs.cat.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.3,onArrive(){if(!rest)return;showParty()}};rest.phase='cat';focusN(npcs.cat.n,.3)}
-function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,1.22,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,1.16,dp.z);rest.phase='party';rest.heartT=.15;focusN(teaRoot.userData.n,.5)}
+function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,teaRoot.userData.tableSurface,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,teaRoot.userData.tableSurface,dp.z);rest.phase='party';rest.heartT=.15;focusN(teaRoot.userData.n,.5)}
 function relaxStep(c,tg,sp,dt){const n=c.n,f=c.f;vA.copy(tg).addScaledVector(n,-tg.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=5*dt;f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));if(sp>0){vC.crossVectors(n,f).normalize();const st=sp*dt*(Math.abs(ang)>1.2?.45:1);n.applyAxisAngle(vC,st);f.applyAxisAngle(vC,st)}n.normalize();f.addScaledVector(n,-f.dot(n)).normalize();return Math.acos(Math.min(1,n.dot(tg)))}
 function relaxMove(c,dt){const j=c.job;if(!j)return;c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';if(j.phase==='sit'||j.phase==='lie'){c.sp=0;c.mv=0;c.n.copy(j.n);if(j.face)c.f.copy(j.face);return}const tg=j.phase==='lap'?j.pts[j.i]:j.n;c.sp=j.sp||1;const left=relaxStep(c,tg,c.sp,dt);const near=j.phase==='lap'?.22:j.done==='lie'?.34:.18;if(left+1e-4<(j.best==null?9:j.best)){j.best=left;j.stuck=0}else j.stuck=(j.stuck||0)+dt;if(left<near||(j.stuck>1.4&&left<.7)){if(j.phase==='lap'){j.i++;j.best=null;j.stuck=0;if(j.i>=j.pts.length)j.phase='run'}else{j.phase=j.done||'sit';c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';c.n.copy(j.n);if(j.face)c.f.copy(j.face);c.sp=0;if(j.onArrive){const fn=j.onArrive;j.onArrive=null;fn()}}}}
 function spawnPartyHeartAt(n,base){const h=makeHeart();h.scale.set(.9,.9,1);const tng=new T.Vector3(1,0,0).addScaledVector(n,-n.x);if(tng.lengthSq()<1e-6)tng.set(0,0,1);tng.normalize();const bin=new T.Vector3().crossVectors(n,tng),ang=Math.random()*6.2832;const side=tng.multiplyScalar(Math.cos(ang)).addScaledVector(bin,Math.sin(ang)).normalize();h.position.copy(n).multiplyScalar(R+base);h.userData={age:0,n:n.clone(),side,base,lift:2.15+Math.random()*.45,drift:.02+Math.random()*.03,spin:Math.random()*6};world.add(h);partyHearts.push(h)}
@@ -1253,7 +1255,53 @@ function spawnPartyHeart(){if(npcs.girl)spawnPartyHeartAt(npcs.girl.n,1.85);cons
 function relaxTick(dt){try{if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(n,.55);toast('여자아이도 누웠어요')}};focusN(n,.58)}}
  if(rest&&rest.kind==='tea'){if(rest.phase==='boy'){rest.t+=dt;if(rest.t>=3)startGirlTea()}else if(rest.phase==='waitcat'){rest.t+=dt;if(rest.t>=2)startCatTea()}else if(rest.phase==='party'){rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=1;spawnPartyHeart()}}}
  for(let i=partyHearts.length-1;i>=0;i--){const h=partyHearts[i],u=h.userData;u.age+=dt;h.position.copy(u.n).multiplyScalar(R+u.base+u.age*u.lift).addScaledVector(u.side,u.age*u.drift);h.material.opacity=Math.max(0,1-u.age/2);h.material.rotation=u.spin+u.age*2;if(u.age>=2){h.parent&&h.parent.remove(h);h.material.dispose();partyHearts.splice(i,1)}}}catch(e){}}
-function relaxPose(){if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}if(rest.kind==='bed'&&(rest.phase==='lie'||rest.phase==='girl')){const bed=bedRoot.userData.beds[rest.bed],q=new T.Quaternion(),ax=new T.Vector3(0,0,-1);bed.getWorldQuaternion(q);ax.applyQuaternion(q);yaw=yawFlat(ax);boy.rotation.y=yaw;boy.position.y=R+.04;body.rotation.set(-1.02,0,0);body.position.set(0,.02,0);legs.forEach(l=>l.rotation.set(-1.5,0,0));arms[0].rotation.set(-.15,0,-1.2);arms[1].rotation.set(-.15,0,1.2);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true}else{if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;boy.position.y=R+.52;body.rotation.set(.05,0,0);body.position.set(0,0,0);legs.forEach(l=>l.rotation.set(-1.35,0,0));arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}}}
+function relaxPose(){if(!rest){if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;return}if(rest.kind==='bed'&&(rest.phase==='lie'||rest.phase==='girl')){const bed=bedRoot.userData.beds[rest.bed],q=new T.Quaternion(),ax=new T.Vector3(0,0,-1);bed.getWorldQuaternion(q);ax.applyQuaternion(q);yaw=yawFlat(ax);boy.rotation.y=yaw;boy.position.y=R+.04;body.rotation.set(-1.02,0,0);body.position.set(0,.02,0);legs.forEach(l=>l.rotation.set(-1.5,0,0));arms[0].rotation.set(-.15,0,-1.2);arms[1].rotation.set(-.15,0,1.2);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=true}else{if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(rest.kind==='tea'&&rest.phase!=='walk'){yaw=rest.yaw;boy.rotation.y=yaw;body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach(l=>{l.position.y=.56;l.rotation.set(-1.35,0,0)});arms[0].rotation.set(-.5,0,-.25);arms[1].rotation.set(-.5,0,.25)}}}
+/* Chair surfaces, feet and seated guests use the SAME table-local frame.
+   A radial offset from R cannot match a chair away from the table centre. */
+const teaSeatPoint=new T.Vector3(),teaSeatQ=new T.Quaternion(),teaSeatInv=new T.Matrix4(),teaVertex=new T.Vector3(),teaMeshMatrix=new T.Matrix4();
+function teaContactHeight(o,rig,pet){
+ o.updateWorldMatrix(true,true);
+ teaSeatInv.copy(o.matrixWorld).invert();
+ let min=Infinity;
+ const sample=mesh=>{if(!mesh.isMesh)return;const a=mesh.geometry.attributes.position;if(!a)return;
+  teaMeshMatrix.multiplyMatrices(teaSeatInv,mesh.matrixWorld);
+  for(let i=0;i<a.count;i++){teaVertex.fromBufferAttribute(a,i).applyMatrix4(teaMeshMatrix);min=Math.min(min,teaVertex.y)}};
+ if(pet){rig.body.children.forEach(child=>{if(child.isMesh)sample(child)});rig.legs.forEach(l=>l.traverse(sample))}
+ else sample(rig.body.children[0]);
+ return Number.isFinite(min)?min:0;
+}
+function placeTeaGuest(o,rig,seat,pet=false){
+ const chair=teaRoot.userData.chairs[seat],height=teaContactHeight(o,rig,pet);
+ chair.updateWorldMatrix(true,false);
+ teaSeatPoint.set(0,chair.userData.seatTop-height*o.scale.y,pet?(rig.jaw ? .24 : .12):0);
+ chair.localToWorld(teaSeatPoint);chair.getWorldQuaternion(teaSeatQ);
+ o.parent.worldToLocal(teaSeatPoint);o.position.copy(teaSeatPoint);
+ const parentQ=new T.Quaternion();o.parent.getWorldQuaternion(parentQ);
+ o.quaternion.copy(parentQ.invert()).multiply(teaSeatQ);
+}
+function teaGuestPose(){
+ if(!rest||rest.kind!=='tea')return;
+ placeTeaGuest(boy,{body},rest.seats.boy);
+ for(const id of ['girl','dog','cat']){const c=npcs[id];if(c&&c.pose==='sit')placeTeaGuest(c.o,c.rig,rest.seats[id],id!=='girl')}
+}
+/* Raycast the actual triangulated globe, not just a tangent plane.  Each
+   upright leg ends slightly inside the ground to avoid a visible light gap. */
+function groundTeaLegs(material){
+ teaRoot.updateWorldMatrix(true,true);planet.updateWorldMatrix(true,false);
+ const ray=new T.Raycaster(),up=new T.Vector3(0,1,0),origin=new T.Vector3(),localHit=new T.Vector3();
+ teaRoot.getWorldQuaternion(teaSeatQ);up.applyQuaternion(teaSeatQ).normalize();
+ teaRoot.traverse(part=>{if(!part.userData.teaFeet)return;
+  for(const foot of part.userData.teaFeet){
+   origin.set(foot.x,foot.top,foot.z);part.localToWorld(origin);ray.set(origin,up.clone().negate());
+   const hit=ray.intersectObject(planet,false)[0];if(!hit)continue;
+   localHit.copy(hit.point);part.worldToLocal(localHit);
+   const bottom=localHit.y-.018,length=foot.top-bottom;
+   if(length<=0)continue;
+   const leg=mk(new T.CylinderGeometry(foot.rt,foot.rb,length,10),material,foot.x,(foot.top+bottom)/2,foot.z,part);
+   leg.userData.teaLeg={top:foot.top,bottom,length};
+  }
+ });
+}
 function buildRelax(){
  const wood=M(0xf3d7a4,{roughness:.7}),cream=M(0xfff6ea),mint=M(0x7ee0c8),yellow=M(0xffe566),cocoa=M(0x8a5a3a,{roughness:.8}),coffee=M(0x6b3a22),strawC=M(0xfff3c4);
  const plastic=M(0xf5f7fb,{roughness:.22,metalness:.04}),shade=M(0xd5dde8,{roughness:.4}),white=M(0xfffdfb,{roughness:.55});
@@ -1286,19 +1334,25 @@ function buildRelax(){
  [0,.025,.05].forEach((y,i)=>mk(new T.BoxGeometry(.28,.02,.16),white,.12,.56+y,.05,side));
  place(bedRoot,bedN);bedRoot.scale.setScalar(1.12);
  teaRoot=new T.Group();
- const topY=1.02;
+ const topY=1.12;teaRoot.userData.tableSurface=topY+.13;
  mk(new T.CylinderGeometry(1.49,1.56,.14,28),cream,0,topY,0,teaRoot);mk(new T.CylinderGeometry(1.36,1.36,.06,28),M(0xff8fb8),0,topY+.1,0,teaRoot);
- [[-.78,-.78],[.78,-.78],[-.78,.78],[.78,.78]].forEach(([x,z])=>mk(new T.CylinderGeometry(.06,.075,topY,8),wood,x,topY/2,z,teaRoot));
+ teaRoot.userData.teaFeet=[[-.78,-.78],[.78,-.78],[-.78,.78],[.78,.78]].map(([x,z])=>({x,z,top:topY-.07,rt:.06,rb:.075}));
  const seatY=.82,dist=2.22,chairs=[];
  [[dist,0],[0,-dist],[-dist,0],[0,dist]].forEach(([x,z],i)=>{const c=new T.Group();c.position.set(x,0,z);c.rotation.y=Math.atan2(-x,-z||0);const col=i%2?mint:yellow;
-  [[-.48,-.4],[.48,-.4],[-.48,.42],[.48,.42]].forEach(([lx,lz])=>mk(new T.CylinderGeometry(.07,.08,seatY-.04,8),wood,lx,(seatY-.04)/2,lz,c));
-  mk(new T.BoxGeometry(1.42,.14,1.22),col,0,seatY,.02,c);mk(new T.BoxGeometry(1.42,.7,.14),col,0,seatY+.4,-.88,c);
+  c.userData.seatTop=seatY+.07;c.userData.teaFeet=[[-.48,-.56],[.48,-.56],[-.48,.42],[.48,.42]].map(([x,z])=>({x,z,top:seatY-.07,rt:.07,rb:.08}));
+  mk(new T.BoxGeometry(1.42,.14,1.44),col,0,seatY,-.08,c);mk(new T.BoxGeometry(1.42,.7,.14),col,0,seatY+.4,-.73,c);
   const pick=new T.Mesh(new T.BoxGeometry(1.8,2.3,1.7),ghost());pick.position.set(0,1.05,-.05);pick.userData.relax='tea';pick.userData.chair=i;c.add(pick);relaxHits.push(pick);teaRoot.add(c);chairs.push(c)});
  teaRoot.userData.chairs=chairs;
  const props=new T.Group();props.visible=false;teaRoot.add(props);teaRoot.userData.props=props;
- const cake=new T.Group();cake.position.y=1.22;cake.scale.setScalar(1.7);mk(new T.CylinderGeometry(.2,.22,.14,20),cocoa,0,.08,0,cake);mk(new T.CylinderGeometry(.18,.18,.05,20),cream,0,.16,0,cake);mk(new T.SphereGeometry(.035,8,6),cocoa,.08,.2,.02,cake);props.add(cake);
- const fork=new T.Group();mk(new T.BoxGeometry(.025,.02,.28),cream,0,.02,0,fork);[-.04,0,.04].forEach(x=>mk(new T.BoxGeometry(.012,.02,.08),cream,x,.02,.14,fork));fork.position.set(.55,1.2,.16);fork.rotation.y=.4;props.add(fork);
- const cup=new T.Group();cup.scale.setScalar(1.45);mk(new T.CylinderGeometry(.07,.08,.1,12),cream,0,.06,0,cup);mk(new T.CylinderGeometry(.055,.055,.02,12),coffee,0,.1,0,cup);mk(new T.TorusGeometry(.045,.012,6,10,Math.PI),cream,.07,.07,0,cup).rotation.z=Math.PI/2;props.add(cup);teaRoot.userData.coffee=cup;
+ const cake=new T.Group();cake.position.y=teaRoot.userData.tableSurface;cake.scale.setScalar(1.7);mk(new T.CylinderGeometry(.2,.22,.14,20),cocoa,0,.08,0,cake);mk(new T.CylinderGeometry(.18,.18,.05,20),cream,0,.16,0,cake);mk(new T.SphereGeometry(.035,8,6),cocoa,.08,.2,.02,cake);props.add(cake);
+ const fork=new T.Group();mk(new T.BoxGeometry(.025,.02,.28),cream,0,.02,0,fork);[-.04,0,.04].forEach(x=>mk(new T.BoxGeometry(.012,.02,.08),cream,x,.02,.14,fork));fork.position.set(.55,teaRoot.userData.tableSurface,.16);fork.rotation.y=.4;props.add(fork);
+ const cup=new T.Group();cup.name='large-coffee';
+ mk(new T.CylinderGeometry(.23,.23,.035,28),cream,0,.0175,0,cup);
+ const mugWall=new T.LatheGeometry([new T.Vector2(.12,.04),new T.Vector2(.15,.055),new T.Vector2(.17,.3),new T.Vector2(.145,.3),new T.Vector2(.125,.075)],28);
+ mk(mugWall,cream,0,0,0,cup);mk(new T.CylinderGeometry(.128,.128,.012,28),coffee,0,.265,0,cup);
+ mk(new T.TorusGeometry(.1575,.0125,8,28),cream,0,.3,0,cup).rotation.x=Math.PI/2;
+ mk(new T.TorusGeometry(.092,.025,10,24),cream,.185,.17,0,cup);
+ props.add(cup);teaRoot.userData.coffee=cup;
  const clear=M(0xe7f7ff,{transparent:true,opacity:.42,roughness:.05}),juice=M(0xff4f86,{transparent:true,opacity:.92}),citrus=M(0xffb23a);
  const glass=new T.Group();glass.scale.set(1.85,1.15,1.85);
  mk(new T.CylinderGeometry(.11,.11,.03,16),clear,0,.02,0,glass);mk(new T.CylinderGeometry(.02,.024,.22,8),clear,0,.14,0,glass);
@@ -1307,10 +1361,14 @@ function buildRelax(){
  mk(new T.TorusGeometry(.18,.014,6,18),clear,0,.55,0,glass).rotation.x=Math.PI/2;
  mk(new T.SphereGeometry(.05,10,8),M(0xff3355),-.04,.6,.05,glass);
  mk(new T.CylinderGeometry(.055,.055,.014,12),citrus,.1,.57,0,glass).rotation.x=1.2;
- const s1=mk(new T.CylinderGeometry(.016,.016,.78,6),strawC,.02,.78,0,glass);s1.rotation.z=.28;
- mk(new T.CylinderGeometry(.016,.016,.62,6),strawC,.28,1.32,0,glass).rotation.z=.85;
+ /* One continuous ㄱ-shaped straw: upright, rounded 90-degree elbow, short end. */
+ const strawPath=new T.CurvePath();
+ strawPath.add(new T.LineCurve3(new T.Vector3(.04,.32,.025),new T.Vector3(.04,.79,.025)));
+ strawPath.add(new T.QuadraticBezierCurve3(new T.Vector3(.04,.79,.025),new T.Vector3(.04,.84,.025),new T.Vector3(.09,.84,.025)));
+ strawPath.add(new T.LineCurve3(new T.Vector3(.09,.84,.025),new T.Vector3(.25,.84,.025)));
+ const straw=mk(new T.TubeGeometry(strawPath,36,.014,8,false),strawC,0,0,0,glass);straw.name='single-bent-straw';
  props.add(glass);teaRoot.userData.drink=glass;
- place(teaRoot,teaN);teaRoot.scale.setScalar(1);
+ place(teaRoot,teaN);teaRoot.scale.setScalar(1);groundTeaLegs(wood);
 }
 const clock=new T.Clock(),AY=new T.Vector3(0,1,0),axis=new T.Vector3(),q=new T.Quaternion(),q2=new T.Quaternion(),tmp=new T.Vector3(),cl=new T.Vector3();
 const look=new T.Vector3(0,2,0),dir=new T.Vector3(-.09,.5,.86).normalize(),camDir=dir.clone(),swingDir=new T.Vector3(-.28,.4,1).normalize();
@@ -1437,7 +1495,7 @@ function spawnHeart(who){const r=rigOf(who);if(!r||!r.body)return;const h=makeHe
 const popAim=new T.Vector3(),popFace=new T.Vector3(0,-.02,1),popX=new T.Vector3(),popZ=new T.Vector3(),popM=new T.Matrix4(),popQ=new T.Quaternion(),popInv=new T.Quaternion();
 function holdPose(){if(ride||lying||snack||rest)return;for(const key of ['pop','fluff']){const who=wearOn[key];if(who!=='boy'&&who!=='girl')continue;const arm=holdArm(who,key);if(!arm)continue;const side=arm.position.x>=0?1:-1;const bob=Math.sin(tw*2.2+(key==='fluff'?1:0))*.04;if(key==='pop'){arm.rotation.set(-1.8+bob,0,side*1.05);arm.quaternion.setFromEuler(arm.rotation,false);const pop=wearMesh.get('pop');if(!pop)continue;pop.position.set(0,who==='girl'?-.34:-.36,.04);popAim.set(side*.28,.8,.5).normalize();popX.crossVectors(popAim,popFace);if(popX.lengthSq()<1e-6)popX.set(1,0,0);popX.normalize();popZ.crossVectors(popX,popAim).normalize();popM.makeBasis(popX,popAim,popZ);popQ.setFromRotationMatrix(popM);popInv.copy(arm.quaternion).invert();pop.quaternion.copy(popInv).multiply(popQ)}else{arm.rotation.set(-2.2+bob,0,side*.62)}}}
 function spinPop(){const pop=wearMesh.get('pop');if(pop&&pop.userData.spin)pop.userData.spin.rotation.z=tw*4}
-function itemTick(dt){if(!boy)return;liePose();relaxPose();holdPose();spinPop();
+function itemTick(dt){if(!boy)return;liePose();relaxPose();teaGuestPose();holdPose();spinPop();
  if(snack){if(ride){endSnack();return}snack.t+=dt;if(snack.q)world.quaternion.slerp(snack.q,Math.min(1,dt*3.4));if(snack.who==='boy'){const face=Math.atan2(dir.x,dir.z);yaw+=Math.atan2(Math.sin(face-yaw),Math.cos(face-yaw))*Math.min(1,dt*4);boy.rotation.y=yaw}eatPose();if(snack.t>=snack.next&&snack.t<10){snack.next+=1;spawnHeart(snack.who)}if(snack.t>=10)endSnack()}
  for(let i=hearts.length-1;i>=0;i--){const h=hearts[i],u=h.userData;u.age+=dt;const a=u.age;h.position.set(u.x+Math.sin(a*2.4+u.ph)*.035,u.y+a*(.48+u.lift*2.2),u.z+Math.cos(a*1.6+u.ph)*.03);const fade=a<3?1:Math.max(0,1-(a-3)/.8);h.material.opacity=fade;if(a>=3.8){h.parent&&h.parent.remove(h);h.material.dispose();hearts.splice(i,1)}}
  for(const g of placeById.values()){const p=g.userData.parasol;if(p&&p.userData.tilt){const t=p.userData.tilt;p.rotation.x=t.x+Math.sin(tw*.55)*.02;p.rotation.z=t.z+Math.cos(tw*.4)*.018}if(!g.userData.light)continue;const night=U.uNight.value,flick=.72+.28*Math.sin(tw*8)+.12*Math.sin(tw*21);g.userData.light.intensity=(.2+night*2.6)*flick;g.userData.glow.material.opacity=.12+night*.62;g.userData.flame.scale.y=1.15+.3*Math.sin(tw*12)}}
