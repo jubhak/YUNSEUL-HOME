@@ -49,19 +49,6 @@
   const tube=(g,m,pts,r=.018)=>mesh(g,new T.TubeGeometry(new T.CatmullRomCurve3(pts),36,r,6,false),m);
   return {mat,mesh,box,tube};
  }
- // Text is rasterized after the Korean font loads, at the plane's exact aspect ratio.
- function cinemaSign(T){
-  const canvas=document.createElement('canvas');canvas.width=1536;canvas.height=384;
-  const ctx=canvas.getContext('2d'),tx=new T.CanvasTexture(canvas);tx.encoding=T.sRGBEncoding;tx.anisotropy=8;
-  function paint(){
-   const c=ctx;c.clearRect(0,0,1536,384);c.fillStyle='#fff7ed';c.fillRect(0,0,1536,384);
-   c.strokeStyle='#cfa570';c.lineWidth=12;c.strokeRect(12,12,1512,360);c.lineWidth=2;c.strokeRect(28,28,1480,328);
-   c.textAlign='center';c.textBaseline='middle';c.fillStyle='#385d59';
-   c.font='800 150px "Noto Sans KR",sans-serif';c.fillText('극장',768,161);
-   c.fillStyle='#a17546';c.font='600 38px "Noto Sans KR",sans-serif';c.fillText('Y U N S E U L   C I N E M A',768,292);tx.needsUpdate=true;
-  }
-  paint();if(document.fonts)document.fonts.load('800 150px "Noto Sans KR"','극장').then(paint).catch(()=>{});return tx;
- }
  function buildTheater(T){
   const {mat,mesh,box}=tools(T),g=new T.Group();g.name='yunseul-cinema-pavilion';
   const pearl=mat(0xfff5e9,{roughness:.38}),gold=mat(0xd8b583,{metalness:.55,roughness:.3});
@@ -72,9 +59,8 @@
   box(g,glass,3.08,1.04,2.24,0,.74,0);
   for(const x of [-1.42,-.68,.68,1.42])box(g,pearl,.10,1.06,.11,x,.75,1.17);
   for(const x of [-.23,.23]){box(g,door,.43,.78,.05,x,.60,1.16);box(g,gold,.025,.18,.035,x*.28,.60,1.20)}
-  // Boutique-shopping-center style entrance fascia: no emojis, warped texture, or busy dots.
+  // Entrance fascia only — the nameplate is the shared labelBig style from app.js.
   box(g,mint,3.28,.48,.17,0,1.12,1.24);
-  const sign=mesh(g,new T.PlaneGeometry(2.08,.52),new T.MeshBasicMaterial({map:cinemaSign(T),toneMapped:false}),0,1.12,1.34);sign.name='cinema-sign';
   box(g,pearl,4.20,.18,3.10,0,1.43,0);box(g,gold,4.24,.035,3.14,0,1.54,0);
   box(g,frame,4.14,1.46,3.04,0,2.28,0);
   const displays=[];
