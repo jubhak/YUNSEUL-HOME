@@ -50,50 +50,76 @@
   return {mat,mesh,box,tube};
  }
  function buildTheater(T){
-  const {mat,mesh,box}=tools(T),g=new T.Group();g.name='avenue-franc-five-storey-theater';
-  const stone=mat(0xf4e7d2),ivory=mat(0xfff9ed),bronze=mat(0xc49b63,{metalness:.45,roughness:.32}),frame=mat(0x405c65,{metalness:.35});
-  const glass=mat(0x87b9c6,{metalness:.3,roughness:.16,emissive:0x466d78,emissiveIntensity:.19}),warm=mat(0xffd99b,{emissive:0xffbc65,emissiveIntensity:.32});
-  const green=mat(0x639c77),terracotta=mat(0xd58b69);
-  box(g,stone,3.65,.16,2.8,0,.04,0);
-  box(g,ivory,3.42,.08,2.60,0,.16,0);
-  // Five real, separately modelled floors, with open-air upper terraces.
-  for(let floor=0;floor<5;floor++){
-   const f=new T.Group();f.name='theater-floor-'+(floor+1);g.add(f);
-   const y=.22+floor*.61,depth=2.24-(floor>=3?(floor-2)*.16:0),z=-(2.24-depth)/2,front=z+depth/2;
-   box(f,glass,3.08,.50,depth,0,y+.285,z);
-   box(f,ivory,3.30,.11,2.42,0,y,0);
-   box(f,bronze,3.32,.025,2.44,0,y+.065,0);
-   for(let i=-4;i<=4;i++)box(f,i%2?bronze:ivory,.045,.50,.07,i*.365,y+.285,front+.02);
-   for(const side of [-1,1]){
-    for(const end of [-1,1])box(f,stone,.13,.51,.10,side*1.56,y+.285,z+end*depth/2);
-    for(let k=0;k<4;k++)box(f,bronze,.065,.5,.035,side*1.55,y+.285,z-depth/2+depth*(k+1)/5);
-   }
-   if(floor===0){
-    box(f,frame,.82,.49,.09,0,y+.25,front+.07);
-    for(const side of [-1,1]){box(f,glass,.36,.44,.025,side*.2,y+.25,front+.125);box(f,bronze,.015,.14,.03,side*.07,y+.27,front+.15)}
-   }else{
-    box(f,bronze,3.18,.035,.10,0,y+.19,1.24);
-    for(const side of [-1,1])box(f,warm,.3,.32,.035,side*1.25,y+.28,front+.07);
-   }
-   if(floor>=3){
-    for(const x of [-1.12,1.12]){box(f,terracotta,.55,.10,.22,x,y+.12,1.09);box(f,green,.52,.13,.19,x,y+.22,1.09)}
-    box(f,bronze,3.22,.025,.025,0,y+.32,1.23);
-    for(const x of [-1.58,-.78,0,.78,1.58])box(f,bronze,.02,.28,.02,x,y+.19,1.23);
-   }
+  const {mat,mesh,box,tube}=tools(T),g=new T.Group();g.name='yunseul-cinema-sculpture';
+  const pearl=mat(0xfff5ef,{metalness:.23,roughness:.27}),gold=mat(0xe6b882,{metalness:.65,roughness:.28});
+  const glass=mat(0x36516e,{metalness:.5,roughness:.17}),light=mat(0xffc9e6,{emissive:0xff88ce,emissiveIntensity:.7});
+  // Preserve the former 3.65 x 2.80 site exactly. Height, not land area, grows.
+  box(g,pearl,3.65,.16,2.8,0,.04,0);box(g,gold,3.42,.07,2.60,0,.155,0);
+  box(g,glass,3.08,2.7,2.24,0,1.58,0);
+  box(g,pearl,3.30,.15,2.42,0,1.02,0);box(g,gold,3.32,.045,2.44,0,1.12,0);
+  for(const x of [-1.25,1.25])box(g,pearl,.15,.77,.15,x,.59,1.17);
+  for(const x of [-.23,.23])box(g,glass,.43,.75,.04,x,.59,1.145);
+  box(g,gold,.024,.18,.05,0,.57,1.18);
+  box(g,pearl,1.6,.13,.40,0,.97,1.18);
+  // A continuous, black-framed second-storey L display spans front + right.
+  box(g,glass,3.27,1.60,.07,0,2.06,1.17);box(g,glass,.07,1.60,2.31,1.60,2.06,.035);
+  const canvas=document.createElement('canvas');canvas.width=1440;canvas.height=440;
+  const ctx=canvas.getContext('2d'),texture=new T.CanvasTexture(canvas);texture.encoding=T.sRGBEncoding;
+  const frontTex=texture.clone(),sideTex=texture.clone();frontTex.repeat.x=3.2/5.5;sideTex.repeat.x=2.3/5.5;sideTex.offset.x=3.2/5.5;
+  const screenMat=t=>new T.MeshBasicMaterial({map:t,toneMapped:false});
+  mesh(g,new T.PlaneGeometry(3.2,1.48),screenMat(frontTex),0,2.06,1.212);
+  const side=mesh(g,new T.PlaneGeometry(2.3,1.48),screenMat(sideTex),1.642,2.06,.062);side.rotation.y=Math.PI/2;
+  for(const y of [1.29,2.83]){box(g,gold,3.30,.035,.045,0,y,1.23);box(g,gold,.045,.035,2.35,1.66,y,.065)}
+  // Tapered, twisting pearl ribbons replace repetitive apartment-like floors.
+  mesh(g,new T.CylinderGeometry(.38,1.38,4.65,40),glass,0,5.10,-.10).scale.z=.66;
+  for(let k=0;k<7;k++){
+   const pts=[];for(let j=0;j<=42;j++){const u=j/42,a=k*Math.PI*2/7+u*1.28,r=1.51*(1-u)+.30*u;pts.push(new T.Vector3(Math.cos(a)*r,2.93+u*4.9,Math.sin(a)*r*.70-.1))}
+   tube(g,pearl,pts,.105);tube(g,gold,pts.map(v=>v.clone().add(new T.Vector3(.035,0,.015))),.018);
   }
-  box(g,ivory,3.38,.13,2.46,0,3.29,0);
-  box(g,bronze,3.40,.035,2.48,0,3.37,0);
-  // Rooftop pergola, understated lighting and a sheltered street-facing entrance.
-  for(const x of [-1.25,1.25])for(const z of [-.73,.65])box(g,bronze,.035,.27,.035,x,3.52,z);
-  for(let i=0;i<9;i++)box(g,ivory,.07,.04,1.52,-1.28+i*.32,3.67,-.04);
-  box(g,bronze,1.54,.055,.55,0,.84,1.30);
-  box(g,warm,1.45,.018,.45,0,.805,1.30);
-  for(const side of [-1,1]){
-   box(g,stone,.44,.22,.28,side*1.44,.28,1.16);
-   mesh(g,new T.SphereGeometry(.22,12,8),green,side*1.44,.48,1.16).scale.set(1,.65,.7);
+  const crown=mesh(g,new T.TorusGeometry(.47,.065,10,60),gold,0,7.86,-.1);crown.rotation.x=Math.PI/2;
+  mesh(g,new T.OctahedronGeometry(.28),light,0,8.28,-.1);
+  tube(g,gold,[new T.Vector3(0,7.85,-.1),new T.Vector3(0,8.65,-.1)],.025);
+  // Real-time anamorphic animation: one panoramic film mapped over both faces.
+  g.userData.display={canvas,ctx,texture,frontTex,sideTex,last:-1};
+  g.userData.footprintRadius=2.35;g.userData.height=8.68;return g;
+ }
+ function updateDisplays(g,time){
+  const d=g.userData.display;if(!d||Math.floor(time*24)===d.last)return;d.last=Math.floor(time*24);
+  const c=d.ctx,w=d.canvas.width,h=d.canvas.height,corner=w*3.2/5.5;
+  c.fillStyle='#08172e';c.fillRect(0,0,w,h);
+  const bg=c.createRadialGradient(corner,210,20,corner,210,700);bg.addColorStop(0,'#346e9b');bg.addColorStop(1,'#081326');c.fillStyle=bg;c.fillRect(0,0,w,h);
+  // Receding room edges and corner perspective sell the screen's depth.
+  c.strokeStyle='#6cbce377';c.lineWidth=3;
+  for(let i=0;i<8;i++){const x=i*w/7;c.beginPath();c.moveTo(corner,190);c.lineTo(x,h);c.stroke()}
+  c.strokeRect(38,28,w-76,h-56);c.strokeRect(190,75,w-380,h-150);
+  const z=(Math.sin(time*.8)+1)/2,x=corner+Math.sin(time*.57)*155,y=210+Math.sin(time*1.1)*40,r=57+z*102;
+  c.save();c.translate(x,y);c.rotate(Math.sin(time*.7)*.18);
+  c.shadowColor='#79e5ff';c.shadowBlur=30;
+  // A luminous pearl-whale swims out of the perspective box and across the seam.
+  const body=c.createRadialGradient(-r*.3,-r*.35,4,0,0,r*1.4);body.addColorStop(0,'#ffffff');body.addColorStop(.38,'#b4ecff');body.addColorStop(1,'#547dbd');c.fillStyle=body;
+  c.beginPath();c.ellipse(0,0,r*1.5,r*.73,0,0,Math.PI*2);c.fill();
+  c.beginPath();c.moveTo(-r*1.15,0);c.quadraticCurveTo(-r*2.2,-r*1.05,-r*2.05,-r*.1);c.quadraticCurveTo(-r*2.45,r*.7,-r*1.15,r*.24);c.fill();
+  c.fillStyle='#82acd9';c.beginPath();c.ellipse(0,r*.48,r*.60,r*.17,.45,0,Math.PI*2);c.fill();
+  c.shadowBlur=0;c.fillStyle='#14293f';c.beginPath();c.arc(r*.82,-r*.13,r*.065,0,7);c.fill();c.fillStyle='white';c.beginPath();c.arc(r*.84,-r*.15,r*.022,0,7);c.fill();c.restore();
+  for(let i=0;i<18;i++){const bx=(i*139+Math.sin(time+i)*25)%w,by=h-((time*38+i*71)%h);c.strokeStyle='#c7f1ff99';c.lineWidth=2;c.beginPath();c.arc(bx,by,4+i%5*2,0,7);c.stroke()}
+  c.fillStyle='#e1f7ff';c.font='600 20px sans-serif';c.fillText('YUNSEUL · DREAM IN 3D',54,407);
+  d.texture.needsUpdate=d.frontTex.needsUpdate=d.sideTex.needsUpdate=true;
+ }
+ function buildShoppingCenter(T){
+  const {mat,mesh,box,tube}=tools(T),g=new T.Group();g.name='rose-arcade-shopping-center';
+  const ivory=mat(0xfff2e3),rose=mat(0xe7a7aa),gold=mat(0xd8b583,{metalness:.5}),glass=mat(0x83c9cf,{metalness:.32,roughness:.18,emissive:0x356572,emissiveIntensity:.12});
+  box(g,ivory,3.15,.12,2.12,0,.05,0);box(g,glass,2.84,1.9,1.78,0,1.03,0);
+  for(const y of [.18,1.2,2.03])box(g,ivory,3.04,.12,1.98,0,y,0);
+  for(const x of [-1.28,-.65,0,.65,1.28]){
+   box(g,ivory,.085,1.76,.12,x,1.05,.96);
+   const arch=mesh(g,new T.TorusGeometry(.28,.048,8,24,Math.PI),rose,x,1.59,.98);
+   for(const dx of [-.28,.28])box(g,rose,.06,.58,.07,x+dx,1.29,.98);
   }
-  g.userData.footprintRadius=2.35;g.userData.floorCount=5;
-  return g;
+  box(g,gold,.78,.07,.34,0,.91,1.07);
+  const roof=mesh(g,new T.SphereGeometry(1,32,16,0,Math.PI*2,0,Math.PI/2),glass,0,2.1,0);roof.scale.set(1.18,.53,.79);
+  for(const x of [-1.34,1.34]){box(g,rose,.32,.24,.36,x,2.21,.63);mesh(g,new T.SphereGeometry(.23,12,10),mat(0x91b79a),x,2.42,.63)}
+  tube(g,gold,[new T.Vector3(-1.48,2.14,.96),new T.Vector3(0,2.35,1.03),new T.Vector3(1.48,2.14,.96)],.026);
+  g.userData.footprintRadius=2.0;return g;
  }
  function buildOpera(T){
   const {mat,mesh,box,tube}=tools(T),g=new T.Group();g.name='pearl-shell-opera-house';
@@ -126,7 +152,7 @@
   g.userData.footprintRadius=2.35;
   return g;
  }
- const api={chooseSites,buildTheater,buildOpera};
+ const api={chooseSites,buildTheater,buildOpera,buildShoppingCenter,updateDisplays};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  else root.CultureLandmarks=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
