@@ -31,8 +31,8 @@ const SPOTS={
  board:{icon:'📌',name:'게시판',reach:.34,html:()=>NOTICES.map(n=>`<details><summary><span>${n.t}</span><small>${n.d}</small></summary><p>${n.b}</p></details>`).join('')},
  shop:{icon:'🛍️',name:'상점',reach:.48,html:shopHtml},
  mail:{icon:'📮',name:'문의하기',reach:.26,html:()=>`<p>궁금한 점이 있으면 편하게 편지를 보내주세요.</p><p>✉️ ${CONTACT.mail.toUpperCase()}</p><div class="row"><a class="btn" href="mailto:${CONTACT.mail}">메일 보내기</a></div>`},
- theater:{icon:'🎬',name:'극장',reach:.42},
- opera:{icon:'🎭',name:'오페라하우스',reach:.42}
+ theater:{icon:'🎬',name:'극장',reach:.59},
+ opera:{icon:'🎭',name:'오페라하우스',reach:.59}
 };
 $('#site').textContent=SITE;
 let modalOpen=false,toastT,auto=null;
@@ -400,38 +400,30 @@ function buildSpots(){
  const sl=labelBig('🛍️ 상점',{as:'🛍️ 쇼핑몰',fs:92,fontScale:.8,pad:15,bw:12,bg:'#fff1f3',bd:'#ff6f8f',fg:'#e0405f',dots:'#ffb3c4'}),sw2=3.1,sh2=sw2*sl.userData.h/sl.userData.w;mk(new T.BoxGeometry(sw2-.2,sh2-.2,.1),M(0xff6f8f),0,2.2,0,g);pl=plane(sl,sw2,sh2);pl.position.set(0,2.2,.06);g.add(pl);spot('shop',g,nrm(.8,-.55),1.4);
  g=new T.Group();mk(new T.BoxGeometry(.14,1,.14),wood,0,.5,0,g);mk(new T.BoxGeometry(.7,.55,1),M(0x4c8bf5),0,1.25,0,g);mk(new T.BoxGeometry(.05,.4,.05),M(0xdd3333),.38,1.55,0,g);
  pl=plane(label('문의','MAIL','#4c8bf5','#fff'),.55,.3);pl.position.set(0,1.25,.51);g.add(pl);spot('mail',g,nrm(1.05,2.35),1);
- /* User HUD coords: Opera N27.0 E126.5 · Theater N30.9 E151.9 */
- const operaN=hudN(27.0,126.5),theaterN=hudN(30.9,151.9);
- g=new T.Group();
- const marble=M(0xf4efe6,{roughness:.55}),gold=M(0xe6c15a,{roughness:.35,metalness:.35}),rose=M(0xff8fab),deep=M(0x5b3d7a);
- mk(new T.BoxGeometry(2.6,1.55,2.1),marble,0,.78,0,g);
- mk(new T.BoxGeometry(2.9,.18,2.4),gold,0,1.62,0,g);
- mk(new T.CylinderGeometry(.55,.55,.35,20),gold,0,1.9,0,g);
- mk(new T.SphereGeometry(.42,16,12),rose,0,2.28,0,g);
- [-1.05,0,1.05].forEach(x=>mk(new T.CylinderGeometry(.12,.14,1.55,10),marble,x,.78,1.05,g));
- mk(new T.BoxGeometry(1.1,1.2,.08),deep,0,.7,1.08,g);
- pl=plane(labelBig('🎭 오페라',{as:'🎭 오페라',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff4fb',bd:'#d98bb8',fg:'#8a3d6b',dots:'#f0b6d4'}),1.9,.55);pl.position.set(0,2.55,.2);g.add(pl);
- spot('opera',g,operaN,2.2);
- g=new T.Group();
- const brick=M(0xffc4a8,{roughness:.7}),red=M(0xe85d5d),cream=M(0xfff6e8),navy=M(0x3d5a80);
- mk(new T.BoxGeometry(2.8,1.35,2.2),brick,0,.68,0,g);
- mk(new T.BoxGeometry(3.1,.22,2.5),red,0,1.45,0,g);
- mk(new T.BoxGeometry(1.6,.9,1.4),cream,0,1.1,-.2,g);
- mk(new T.BoxGeometry(.9,1.05,.12),navy,0,.72,1.12,g);
- [[-1.1,.95],[1.1,.95],[-1.1,.55],[1.1,.55]].forEach(([x,y])=>mk(new T.BoxGeometry(.35,.28,.05),M(0x9be3ff,{emissive:0x4aa8c8,emissiveIntensity:.35}),x,y,1.12,g));
- mk(new T.CylinderGeometry(.04,.04,1.1,6),M(0xffffff),-.55,1.95,.9,g);
- mk(new T.ConeGeometry(.35,.2,12),red,-.55,2.55,.9,g);
- pl=plane(labelBig('🎬 극장',{as:'🎬 극장',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff1f0',bd:'#e85d5d',fg:'#b33a3a',dots:'#ffb3a8'}),1.7,.5);pl.position.set(0,2.2,.15);g.add(pl);
- spot('theater',g,theaterN,2.0);
+ // Build every fixed structure before selecting the two cultural sites.
+ buildRides();
+ buildRelax();
+ const obstacles=spotObjs.map(o=>({n:o.userData.n,radius:o.userData.spot==='shop'?2.0:o.userData.spot==='board'?1.2:.72}));
+ rides.forEach(o=>obstacles.push({n:o.userData.n,radius:o.userData.ride==='slide'?4.5:2.2}));
+ obstacles.push({n:bedRoot.userData.n,radius:2.75},{n:teaRoot.userData.n,radius:3.55});
+ // Respect an already saved user-placed towel/parasol or candle as well.
+ for(const [key,p] of Object.entries(placeN))if(p&&Number.isFinite(+p.x)&&Number.isFinite(+p.y)&&Number.isFinite(+p.z)){
+  const n=new T.Vector3(+p.x,+p.y,+p.z);if(n.lengthSq()>.01)obstacles.push({n:n.normalize(),radius:key==='towel'?2.35:.25});
+ }
+ const sites=CultureLandmarks.chooseSites(T,obstacles,R,2.35,2.35),operaN=sites.opera,theaterN=sites.theater;
+ g=CultureLandmarks.buildOpera(T);
+ pl=plane(labelBig('🎭 오페라',{as:'🎭 오페라',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff8ec',bd:'#c5a264',fg:'#4d697b',dots:'#ead8ad'}),1.65,.46);
+ pl.position.set(0,1.19,1.47);g.add(pl);spot('opera',g,operaN,3.15);
+ g=CultureLandmarks.buildTheater(T);
+ pl=plane(labelBig('🎬 극장',{as:'🎬 극장',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff8ec',bd:'#c5a264',fg:'#405c65',dots:'#ead8ad'}),1.70,.46);
+ pl.position.set(0,3.03,1.27);g.add(pl);spot('theater',g,theaterN,3.7);
+ // Reserve wide lawns: trees, palms, rocks and flowers are never placed here.
+ // Append after buildRelax(), which initializes the lounge exclusion areas.
+ window.clearN.push({n:operaN.clone(),pad:.95},{n:theaterN.clone(),pad:.95});
  const bn=spotObjs.find(s=>s.userData.spot==='board').userData.n,sn=spotObjs.find(s=>s.userData.spot==='shop').userData.n,mid=bn.clone().add(sn).normalize();
  world.quaternion.setFromUnitVectors(mid,new T.Vector3(0,1,0));
  world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-.22));
  yaw=0;
- buildRides();
- buildRelax();
- /* Keep trees/rocks/flowers off opera & theater pads (buildProps reads clearN). */
- window.clearN=window.clearN||[];
- window.clearN.push({n:operaN.clone(),pad:.92},{n:theaterN.clone(),pad:.92});
 }
 /* 미끄럼은 미끄럼 반대편 사다리에서 미끄럼 쪽을 보며 올라간다. 그네는 줄을 잡고 움직이기 전까지 탄다 */
 function courseOf(parent,x){
@@ -1034,7 +1026,7 @@ function addFootprint(object,hx,hz,cx=0,cz=0,round=false){
 }
 function buildNavigation(){
  solidFootprints.length=0;navCache.clear();navGrid=null;
- for(const o of spotObjs){const kind=o.userData.spot;addFootprint(o,kind==='shop'?1.8:kind==='board'?1.18:(kind==='theater'||kind==='opera')?1.55:.48,0,0,0,true)}
+ for(const o of spotObjs){const kind=o.userData.spot;addFootprint(o,kind==='shop'?1.8:kind==='board'?1.18:(o.userData.footprintRadius||.48),0,0,0,true)}
  for(const o of rides){if(o.userData.ride==='slide')addFootprint(o,.98,2.43,0,.88);else addFootprint(o,1.42,.50)}
  bedRoot.userData.beds.forEach(b=>addFootprint(b,.50,1.18,0,.15));
  addFootprint(bedRoot,.40,.40,0,.15);
@@ -1975,7 +1967,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
  if(!ride&&!rest&&!lying&&!snack&&!modalOpen){
   let best=Infinity;
   for(const o of spotObjs){
-   const kind=o.userData.spot,hx=kind==='shop'?1.9:kind==='board'?1.25:(kind==='theater'||kind==='opera')?1.7:.7;
+   const kind=o.userData.spot,hx=kind==='shop'?1.9:kind==='board'?1.25:(o.userData.footprintRadius?o.userData.footprintRadius+.15:.7);
    const a=localProximity(o,hx,0,0,0,true,1.25);
    if(a<best){best=a;near=o.userData.spot;nearRide=null;nearRelax=null}
   }
