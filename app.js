@@ -195,6 +195,7 @@ loadHome();if(adminToken)api('/api/admin/session').then(()=>{isAdmin=true;syncAd
 
 /* ===== Three.js ===== */
 const T=THREE,R=6;
+const sakuraGarden=SakuraGarden.create(T,{radius:R});
 const cv=$('#c'),rd=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
 rd.setPixelRatio(Math.min(devicePixelRatio,2));rd.shadowMap.enabled=true;rd.shadowMap.type=T.PCFSoftShadowMap;rd.autoClear=false;rd.setClearColor(0,0);
 if(BG_VIDEO){const v=document.createElement('video');Object.assign(v,{src:BG_VIDEO,autoplay:true,muted:true,loop:true,playsInline:true});v.style.cssText='position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1';document.body.prepend(v)}
@@ -503,15 +504,7 @@ function buildProps(){
  const free=(n,m)=>clearOfRides(n,.65)&&n.angleTo(TOP)>.4&&spotObjs.every(s=>s.userData.n.angleTo(n)>spotPad(s.userData.spot,m))&&used.every(u=>u.angleTo(n)>(u.ride?0.7:0.16))&&(window.clearN||[]).every(c=>n.angleTo(c.n)>(c.pad||.7));
  /* Planet-wide: every tree/rock/umbrella is decorative — walk through like flowers. */
  const spawn=(cnt,fn,m)=>{for(let i=0,k=0;i<cnt&&k<800;k++){const n=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();if(!free(n,m))continue;used.push(n);const g=new T.Group();g.userData.walkThrough=true;fn(g);g.scale.setScalar(.9+rnd()*.35);place(g,n,rnd()*6.28);i++}};
- const sakuraColors=[0xffd0df,0xffb7d4,0xffecf2],blossomGeo=new T.IcosahedronGeometry(.40,1);
- spawn(16,g=>{g.name='sakura-gap-tree';const variant=Math.floor(rnd()*3),bark=M(0x98667a),petals=sakuraColors.map(c=>M(c,{roughness:.9}));
-  mk(new T.CylinderGeometry(.075,.12,1.25,8),bark,0,.57,0,g);
-  for(let j=0;j<5;j++){const angle=j*2.4,reach=.30+rnd()*.24,branch=mk(new T.CylinderGeometry(.025,.055,.78,6),bark,Math.cos(angle)*.19,.98,Math.sin(angle)*.19,g);branch.rotation.z=Math.cos(angle)*.6;branch.rotation.x=Math.sin(angle)*.6;
-   const crown=mk(blossomGeo,petals[(j+variant)%3],Math.cos(angle)*reach,1.35+rnd()*.35,Math.sin(angle)*reach,g);crown.scale.set(1.3,variant===1?.8:1.1,1.15);
-   for(let k=0;k<3;k++)mk(new T.SphereGeometry(.095,6,5),petals[(j+k)%3],Math.cos(angle)*reach+(rnd()-.5)*.5,1.6+rnd()*.2,Math.sin(angle)*reach+(rnd()-.5)*.5,g);
-  }
-  if(variant===2)for(let j=0;j<6;j++){const a=j*Math.PI/3;mk(new T.SphereGeometry(.16,8,6),petals[j%3],Math.cos(a)*.64,1.04,Math.sin(a)*.64,g).scale.set(.7,2,.7)}
- },.45);
+ spawn(16,g=>sakuraGarden.grow(g,rnd),.45);
  spawn(10,g=>{mk(gT,trunk,0,.25,0,g);mk(gC,pine,0,.8,0,g);mk(gC,pine,0,1.15,0,g).scale.setScalar(.75)},.55);
  spawn(8,g=>{mk(gT,trunk,0,.25,0,g);mk(gS,leaf,0,.85,0,g)},.55);
  spawn(9,g=>{const t=mk(gP,trunk,0,.75,0,g);t.rotation.z=.12;for(let i=0;i<6;i++){const a=new T.Group();a.rotation.y=i*1.047;const l=mk(gL,leaf,.45,1.55,0,a);l.rotation.z=-Math.PI/2-.45;l.scale.z=.3;g.add(a)}},.6);
@@ -2092,6 +2085,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs
  dkv=dkT?Math.min(1,dkv+dt/1.5):Math.max(0,dkv-dt/1.3);const dk1=ease(Math.min(1,dkv*2)),dk2=ease(Math.max(0,dkv*2-1)),wide=innerWidth>=760;
  const D=35*k*zm*(1+(1-e)*.7)*(1+dk1);cam.position.copy(look).addScaledVector(camDir,D);cam.position.x+=Math.sin(tw*.4)*.12;cam.position.sub(look).applyQuaternion(orbitQ).add(look);cam.up.set(0,1,0).applyQuaternion(orbitQ);oT.copy(look);cam.lookAt(oT);cam.setViewOffset(innerWidth,innerHeight,wide?dk2*innerWidth*.25:0,dk1*innerHeight*(wide?.1:.28),innerWidth,innerHeight);
  for(const landmark of spotObjs)if(landmark.userData.display)CultureLandmarks.updateDisplays(landmark,tw);todTick(dt);wxTick(dt);etTick(dt);seaUpdate(dt);geoTick();for(const f of flowerSway)f.g.rotation.z=Math.sin(tw*1.35+f.ph)*f.a;bfUpdate(dt);npcUpdate(dt);itemTick(dt);
+ sakuraGarden.update(dt,tw,world,boy);
  rd.clear();if(!BG_VIDEO)rd.render(bgS,bgC);rd.clearDepth();rd.render(scene,cam)}
 
 /* ===== 쇼핑센터 물건: 착용 · 먹기 · 바닥에 놓기 ===== */
