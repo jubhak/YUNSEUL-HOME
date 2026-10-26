@@ -1456,7 +1456,7 @@ function beginRide(kind,group){
  if(ride)return;jh=0;jv=0;stopLie();if(snack)endSnack();
  if(kind==='swing'){yaw=-Math.PI/2;rideV2.copy(group.userData.front);if(!dockOn)zoomRide('swing')}else{yaw=Math.PI/2;rideV2.copy(group.userData.foot);if(!dockOn)zoomRide('slide')}
  rideQ.copy(world.quaternion);rideQuat(group,rideV2,rideAxZ,Math.PI/2,rideQ2);
- ride={kind,group,phase:'align',t:0,q0:rideQ.clone(),q1:rideQ2.clone()};if(kind==='slide')prepareGirlSlide(group)}
+ ride={kind,group,phase:'align',t:0,q0:rideQ.clone(),q1:rideQ2.clone()}}
 /* Menu open: the boy tours the planet on his own — rides, naps, tea, strolls. */
 function pickDockPlay(){
  const slide=rides.find(r=>r.userData.ride==='slide'),swing=rides.find(r=>r.userData.ride==='swing');
@@ -1514,15 +1514,16 @@ function finishSlide(g){
  const forward=rideAxZ.clone().applyQuaternion(g.quaternion).applyQuaternion(world.quaternion);forward.y=0;
  if(forward.lengthSq()>1e-8)yaw=Math.atan2(forward.x,forward.z);
  rideStand();boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);
- jh=0;jv=0;amp=0;boyNav.nav=null;ride=null;startGirlSlide(g);
+ jh=0;jv=0;amp=0;boyNav.nav=null;ride=null;
+ // Girl waits until the boy is fully off, then takes the slide alone.
+ startGirlSlide(g);
 }
 let girlSlide=null;
-function prepareGirlSlide(group){
- const c=npcs.girl;if(!c||rest)return;c.job=null;c.pose='';c.nav=null;
+function startGirlSlide(group){
+ const c=npcs.girl;if(!c||rest||!group)return;c.job=null;c.pose='';c.nav=null;c.wave=false;
  const goal=safeWalkGoal(group.userData.stand,.50,c.n)||group.userData.stand.clone();
- girlSlide={group,t:0,phase:'walk',released:false,goal,from:c.o.position.clone(),q:c.o.quaternion.clone()};
+ girlSlide={group,t:0,phase:'walk',goal,from:c.o.position.clone(),q:c.o.quaternion.clone()};
 }
-function startGirlSlide(group){if(!girlSlide||girlSlide.group!==group)prepareGirlSlide(group);if(girlSlide)girlSlide.released=true;}
 function girlSlidePose(dt){
  if(!girlSlide)return;const s=girlSlide,c=npcs.girl,g=s.group;
  if(rest||c.job){girlSlide=null;return}
@@ -1536,16 +1537,19 @@ function girlSlidePose(dt){
  if(s.phase==='climb'){
   const steps=[s.from,...g.userData.steps,g.userData.slideCurve.getPoint(0)],progress=Math.min(steps.length-1,s.t/.23),i=Math.min(steps.length-2,Math.floor(progress)),u=progress-i;
   setPoint(new T.Vector3().lerpVectors(steps[i],steps[i+1],u*u*(3-2*u)),i===steps.length-2?u:0);
-  if(progress>=steps.length-1){s.phase='wait';s.t=0}return;
+  if(progress>=steps.length-1){s.phase='slide';s.t=0}return;
  }
- if(s.phase==='wait'){setPoint(g.userData.slideCurve.getPoint(0),1);if(s.released){s.phase='slide';s.t=0}return}
  if(s.phase==='slide'){
   const u=Math.min(1,s.t/1.65),e=.18*u+.82*u*u;setPoint(g.userData.slideCurve.getPointAt(e),1);
   if(u>=1){s.phase='land';s.t=0;s.from.copy(c.o.position);s.q.copy(c.o.quaternion)}return;
  }
  const u=Math.min(1,s.t/.70),e=u*u*(3-2*u),landing=g.userData.land.clone().applyQuaternion(g.quaternion).add(g.position).normalize(),safe=safeWalkGoal(landing,.5,landing)||landing;
  const target=safe.clone().multiplyScalar(R),face=forward.clone().addScaledVector(safe,-forward.dot(safe)).normalize(),q=new T.Quaternion();basisQ(safe,face,q);c.o.position.lerpVectors(s.from,target,e);c.o.quaternion.copy(s.q).slerp(q,e);c.rig.legs.forEach(l=>l.rotation.set(-Math.PI/2*(1-e),0,0));
- if(u>=1){c.n.copy(safe);c.f.copy(face);c.nav=null;c.st='pause';c.t=2;c.mv=c.sp=0;girlSlide=null}
+ if(u>=1){
+  c.n.copy(safe);c.f.copy(face);c.nav=null;c.mv=c.sp=0;
+  // Resume orbiting the boy after she finishes the slide alone.
+  c.st='orbit';c.t=6+rnd2()*4;c.od=rnd2()<.5?-1:1;c.orb=.36+rnd2()*.14;girlSlide=null;
+ }
 }
 /* Swing seat sits inside the swing footprint. Leaving there freezes walking
    because every step fails isWalkable — park on a clear patch first. */

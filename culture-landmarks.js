@@ -57,10 +57,10 @@
    const c=ctx;c.clearRect(0,0,1536,384);c.fillStyle='#fff7ed';c.fillRect(0,0,1536,384);
    c.strokeStyle='#cfa570';c.lineWidth=12;c.strokeRect(12,12,1512,360);c.lineWidth=2;c.strokeRect(28,28,1480,328);
    c.textAlign='center';c.textBaseline='middle';c.fillStyle='#385d59';
-   c.font='800 150px "Noto Sans KR",sans-serif';c.fillText('윤슬 극장',768,161);
+   c.font='800 150px "Noto Sans KR",sans-serif';c.fillText('극장',768,161);
    c.fillStyle='#a17546';c.font='600 38px "Noto Sans KR",sans-serif';c.fillText('Y U N S E U L   C I N E M A',768,292);tx.needsUpdate=true;
   }
-  paint();if(document.fonts)document.fonts.load('800 150px "Noto Sans KR"','윤슬 극장').then(paint).catch(()=>{});return tx;
+  paint();if(document.fonts)document.fonts.load('800 150px "Noto Sans KR"','극장').then(paint).catch(()=>{});return tx;
  }
  function buildTheater(T){
   const {mat,mesh,box}=tools(T),g=new T.Group();g.name='yunseul-cinema-pavilion';
