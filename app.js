@@ -409,16 +409,15 @@ function buildSpots(){
  for(const [key,p] of Object.entries(placeN))if(p&&Number.isFinite(+p.x)&&Number.isFinite(+p.y)&&Number.isFinite(+p.z)){
   const n=new T.Vector3(+p.x,+p.y,+p.z);if(n.lengthSq()>.01)obstacles.push({n:n.normalize(),radius:key==='towel'?2.35:.25});
  }
- const sites=CultureLandmarks.chooseSites(T,obstacles,R,2.35,2.35),operaN=sites.opera,theaterN=sites.theater;
+ const sites=CultureLandmarks.chooseSites(T,obstacles,R,2.70,2.35),operaN=sites.opera,theaterN=sites.theater;
  g=CultureLandmarks.buildOpera(T);
  pl=plane(labelBig('🎭 오페라',{as:'🎭 오페라',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff8ec',bd:'#c5a264',fg:'#4d697b',dots:'#ead8ad'}),1.65,.46);
  pl.position.set(0,1.19,1.47);g.add(pl);spot('opera',g,operaN,3.15);
  g=CultureLandmarks.buildTheater(T);
- pl=plane(labelBig('🎬 극장',{as:'🎬 극장',fs:78,fontScale:.78,pad:14,bw:10,bg:'#fff8ec',bd:'#c5a264',fg:'#405c65',dots:'#ead8ad'}),1.70,.46);
- pl.position.set(0,.68,1.40);g.add(pl);spot('theater',g,theaterN,8.8);
- // Reserve wide lawns: trees, palms, rocks and flowers are never placed here.
+ spot('theater',g,theaterN,g.userData.height);
+ // Keep building entrances and their immediate surroundings clear.
  // Append after buildRelax(), which initializes the lounge exclusion areas.
- window.clearN.push({n:operaN.clone(),pad:.95},{n:theaterN.clone(),pad:.95});
+ window.clearN.push({n:operaN.clone(),pad:.55},{n:theaterN.clone(),pad:.59});
  const bn=spotObjs.find(s=>s.userData.spot==='board').userData.n,sn=spotObjs.find(s=>s.userData.spot==='shop').userData.n,mid=bn.clone().add(sn).normalize();
  world.quaternion.setFromUnitVectors(mid,new T.Vector3(0,1,0));
  world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-.22));
@@ -540,7 +539,7 @@ function buildProps(){
  flowerN=[];flowerSway.length=0;
  function canPlant(n,gap){
   if(n.y>.99||!clearOfRides(n,.32))return false;
-  for(const s of spotObjs){const sp=s.userData.spot,pad=sp==='board'?.36:sp==='shop'?.52:sp==='mail'?.24:(sp==='theater'||sp==='opera')?.78:.3;if(s.userData.n.angleTo(n)<pad)return false}
+  for(const s of spotObjs){const sp=s.userData.spot,pad=sp==='board'?.36:sp==='shop'?.52:sp==='mail'?.24:sp==='theater'?.59:sp==='opera'?.55:.3;if(s.userData.n.angleTo(n)<pad)return false}
   for(const u of used)if(u.angleTo(n)<(u.ride?u.pad:gap))return false;
   for(const h of homes)if(h.angleTo(n)<.18)return false;
   for(const c of (window.clearN||[]))if(c.n.angleTo(n)<(c.pad||.7))return false;
@@ -568,6 +567,17 @@ function buildProps(){
   const n=new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();
   if(n.y<-.15||!canPlant(n,.55))continue;
   plant(n,i%8===0?sunflower:kinds[i%kinds.length],.95+rnd()*.7);i++}
+ // Sparse planet-wide grass and rose patches, including previously empty southern land.
+ function grass(g){
+  const blade=new T.ConeGeometry(.035,.32,3),mt=petal(pick([0x64af70,0x81c37b,0x9bcd82]));
+  for(let i=0;i<7;i++){const x=(rnd()-.5)*.28,z=(rnd()-.5)*.28,m=flm(blade,mt,x,.12,z,g);m.rotation.z=(rnd()-.5)*.5;m.scale.y=.65+rnd()*.65}
+ }
+ for(let i=0,k=0;i<100&&k<6000;k++){
+  const y=1-2*rnd(),az=rnd()*Math.PI*2,rr=Math.sqrt(1-y*y),n=new T.Vector3(rr*Math.cos(az),y,rr*Math.sin(az));
+  if(!canPlant(n,.095))continue;
+  // canPlant reserves building entrances, lounge furniture and ride footprints.
+  plant(n,i%4===0?rose:grass,i%4===0?.85+rnd()*.35:.85+rnd()*.45);i++;
+ }
  window.bfs=[];const bc=[0xff8fb1,0xffd23f,0x8fd0ff,0xc79bff,0xff9a56];
  for(let i=0;i<12&&flowerN.length;i++){const g=new T.Group(),mt=new T.MeshBasicMaterial({color:bc[i%5],side:T.DoubleSide}),pw=()=>{const pv=new T.Group(),m=new T.Mesh(new T.CircleGeometry(.17,12),mt);m.rotation.x=-Math.PI/2;pv.add(m);return[pv,m]};
   const[pR,mR]=pw(),[pL,mL]=pw();mR.position.x=.17;mL.position.x=-.17;const bd=new T.Mesh(new T.SphereGeometry(.05,8,6),new T.MeshBasicMaterial({color:0x3a2a2a}));bd.scale.set(.5,.5,1.7);g.add(pR,pL,bd);g.scale.setScalar(1.2);world.add(g);
@@ -1025,7 +1035,7 @@ function seaUpdate(dt){const c=cur.ct;
   p.s.position.set(p.x,p.y,0);p.s.scale.setScalar(p.sz*(1+r*.6));p.s.material.opacity=p.op*(1-r*r)}}
 
 /* ===== AI 친구들 (여자아이 · 강아지) ===== */
-/* ===== Shared spherical navigation: all four walkers respect solid footprints. ===== */
+/* ===== Humans respect structures; pets only avoid the two humans. ===== */
 const solidFootprints=[],navCache=new Map();
 let navGrid=null;
 const boyNav={};
@@ -1053,7 +1063,20 @@ function buildNavigation(){
 }
 // Use the dog's torso/shoulder clearance, not its full nose-to-tail length.
 // The old .90 radius sealed gaps between real props even when the body fitted.
+function isFreePet(c){return !!c&&(c===npcs.cat||c===npcs.dog)}
 function walkRadius(c){return c===npcs.cat?.70:c===npcs.dog?.65:.72}
+function petHumans(){return [{n:boy.position.clone().applyQuaternion(world.quaternion.clone().invert()).normalize(),r:.17},...(npcs.girl?[{n:npcs.girl.n,r:.16}]:[])]}
+function petSegmentClear(a,b){
+ const count=Math.max(1,Math.ceil(a.angleTo(b)/.018)),p=new T.Vector3(),humans=petHumans();
+ for(let i=1;i<=count;i++){p.copy(a).lerp(b,i/count).normalize();for(const h of humans)if(p.angleTo(h.n)<h.r-1e-5)return false}
+ return true;
+}
+function petGoal(goal){
+ const n=goal.clone();for(let pass=0;pass<4;pass++)for(const h of petHumans())if(n.angleTo(h.n)<h.r+.015){
+  const tangent=n.clone().addScaledVector(h.n,-n.dot(h.n));if(tangent.lengthSq()<1e-8)tangent.crossVectors(h.n,Math.abs(h.n.y)<.9?TOP:new T.Vector3(1,0,0));
+  n.copy(h.n).multiplyScalar(Math.cos(h.r+.02)).addScaledVector(tangent.normalize(),Math.sin(h.r+.02)).normalize();
+ }return n;
+}
 function isWalkable(n,radius=.72){
  const p=new T.Vector3().copy(n).multiplyScalar(R),local=new T.Vector3();
  for(const b of solidFootprints){
@@ -1103,6 +1126,7 @@ function planWalkPath(start,goal,radius){
  return path;
 }
 function walkTarget(state,start,target,radius){
+ if(isFreePet(state)){state.nav=null;return petGoal(target)}
  if(!state.nav||state.nav.target.angleTo(target)>.13){
   const goal=safeWalkGoal(target,radius,start);state.nav={target:target.clone(),goal,path:null,retry:0};
  }
@@ -1115,6 +1139,11 @@ function walkTarget(state,start,target,radius){
 }
 function moveWalker(c,next){
  const radius=walkRadius(c),old=c.n.clone();
+ if(isFreePet(c)){
+  const candidate=petGoal(next);if(petSegmentClear(old,candidate)){c.n.copy(candidate);return true}
+  for(const turn of [.45,-.45,.9,-.9,1.4,-1.4]){const trial=next.clone().applyAxisAngle(old,turn);if(petSegmentClear(old,trial)){c.n.copy(trial);return true}}
+  return false;
+ }
  if(walkSegment(old,next,radius)){c.n.copy(next);return true}
  // On keyboard input or a steering overshoot, slide along a free edge instead of tunnelling.
  let best=null,score=Infinity;
@@ -1126,6 +1155,10 @@ function moveWalker(c,next){
 }
 function guardNpc(c){
  if(c.pose==='sit'||c.pose==='lie')return;
+ if(isFreePet(c)){
+  const next=petGoal(c.n);if(c.safeN){c.n.copy(petGoal(c.safeN));moveWalker(c,next)}else c.n.copy(next);
+  c.safeN=c.n.clone();c.f.addScaledVector(c.n,-c.f.dot(c.n)).normalize();return;
+ }
  const radius=walkRadius(c);
  if(c.safeN){const next=c.n.clone();c.n.copy(c.safeN);moveWalker(c,next)}
  else if(!isWalkable(c.n,radius)){const safe=safeWalkGoal(c.n,radius);if(safe)c.n.copy(safe)}
@@ -1275,10 +1308,10 @@ function npcUpdate(dt){
  else if(window.bfs&&bfs.length){cat.actT-=dt;if(cat.mode!=='lick'&&cat.actT<=0){cat.mode='lick';cat.actT=2.3+rnd2()*1.1}
   if(cat.mode==='lick'){cat.sp=0;if(cat.actT<=0){cat.mode='bf';cat.actT=8+rnd2()*8;cat.ct=.2}}
   else{cat.ct-=dt;if(cat.ct<=0){cat.ct=5+rnd2()*5;cat.bi=Math.floor(rnd2()*bfs.length)}
-   const tg=bfs[cat.bi].g.position.clone().normalize(),da=cat.n.angleTo(tg);EX=[{n:pn,r:.2},{n:g.n,r:.14},{n:d.n,r:.12}];
+   const tg=bfs[cat.bi].g.position.clone().normalize(),da=cat.n.angleTo(tg);EX=[{n:pn,r:.2},{n:g.n,r:.16}];
    cat.sp=da>.9?.9:da>.3?.65:da>.1?.4:0;steer(cat,tg,cat.sp,dt);
    if(da<.12&&cat.hop<=0&&rnd2()<dt*1.5)cat.hop=.5}
-  sep(cat,pn,.17);sep(cat,g.n,.13);if(cat.mode!=='lick')sep(cat,d.n,.12)}
+  sep(cat,pn,.17);sep(cat,g.n,.13)}
  for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){c.st='orbit';c.sit=0;c.lay=0}if(id==='girl')c.wave=false}guardNpc(c);basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);if(c.job&&c.job.bouncy&&c.job.phase==='run')c.o.position.addScaledVector(c.n,Math.abs(Math.sin(tw*10))*.22);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
  {const r=g.rig;
   r.legs.forEach(l=>{l.position.y=.36});
@@ -1657,7 +1690,7 @@ function teaFocus(z,party=false){if(!cine&&zoomBack==null)zoomBack=zt;zoomKind='
 function clearWear(){for(const k of Object.keys(wearOn))wearOn[k]='';saveLook();applyLook()}
 function endRest(){if(!rest&&!cine)return;
  if(rest){const exit=rest.kind==='bed'?bedRoot.userData.beds[rest.bed].userData.foot:teaRoot.userData.chairs[rest.seats.boy].userData.approach;alignUp(meshN(exit))}
- for(const c of Object.values(npcs)){const safe=safeWalkGoal(c.n,walkRadius(c));if(safe)c.n.copy(safe);c.safeN=c.n.clone();c.nav=null}
+ for(const c of Object.values(npcs)){const safe=isFreePet(c)?petGoal(c.n):safeWalkGoal(c.n,walkRadius(c));if(safe)c.n.copy(safe);c.safeN=c.n.clone();c.nav=null}
  boyNav.nav=null;boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);for(const c of Object.values(npcs)){if(c.pose==='lie')c.rig.body.position.set(0,0,0)}rest=null;cine=null;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);if(boyShades)boyShades.visible=false;if(boyBook)boyBook.visible=false;if(npcs.girl&&npcs.girl.rig.shades)npcs.girl.rig.shades.visible=false;for(const id of ['girl','dog','cat']){const c=npcs[id];if(!c)continue;c.job=null;c.pose='';c.seatTransition=null}if(teaRoot&&teaRoot.userData.props)teaRoot.userData.props.visible=false;for(const h of partyHearts){if(h.parent)h.parent.remove(h);h.material&&h.material.dispose()}partyHearts.length=0;if(zoomKind==='cine')zoomClear();body.rotation.set(0,0,0);body.position.set(0,0,0);legs.forEach((l,i)=>{l.rotation.set(0,0,0);if(legHome[i])l.position.y=legHome[i].y});arms.forEach(a=>a.rotation.set(0,0,0))}
 function goBed(pick){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();const bed=pick.parent;const n=meshN(bed.userData.foot||bed);auto={n,reach:.035,bed:pick.userData.bed};ring(n)}
 function alignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(up.lengthSq()<1e-8)return;up.normalize();const turn=new T.Quaternion().setFromUnitVectors(up,AY);world.quaternion.premultiply(turn).normalize()}
@@ -1674,7 +1707,7 @@ function beginTeaSit(chair){const seats=assignSeats(chair),ch=teaRoot.userData.c
 function teaApproach(id){
  const c=npcs[id],marker=meshN(teaRoot.userData.chairs[rest.seats[id]].userData.approach);
  c.nav=null;
- return safeWalkGoal(marker,walkRadius(c)+.06,c.n)||marker;
+ return isFreePet(c)?petGoal(marker):(safeWalkGoal(marker,walkRadius(c)+.06,c.n)||marker);
 }
 function startGirlTea(){const tableN=teaRoot.userData.n,n=teaApproach('girl');npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:.42,teaSeat:true,onArrive(){if(!rest)return;rest.phase='waitdog';rest.t=0}};rest.phase='girl';teaFocus(.4)}
 function startDogTea(){const n=teaApproach('dog');npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:.78,teaSeat:true,bouncy:true,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0}};rest.phase='dog';teaFocus(.38)}
@@ -1692,7 +1725,7 @@ function relaxMove(c,dt){
  c.pose=j.phase==='sit'?'sit':j.phase==='lie'?'lie':'';
  if(c.pose){c.sp=0;c.mv=0;c.n.copy(j.n);if(j.face)c.f.copy(j.face);return}
  if(!j.resolved&&j.phase!=='lap'){
-  const goal=safeWalkGoal(j.n,walkRadius(c)+.06,c.n);
+  const goal=isFreePet(c)?petGoal(j.n):safeWalkGoal(j.n,walkRadius(c)+.06,c.n);
   if(goal)j.n.copy(goal);j.resolved=true;c.nav=null;
  }
  const tg=j.phase==='lap'?j.pts[j.i]:j.n;c.sp=j.sp||1;

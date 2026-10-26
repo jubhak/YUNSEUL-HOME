@@ -49,61 +49,99 @@
   const tube=(g,m,pts,r=.018)=>mesh(g,new T.TubeGeometry(new T.CatmullRomCurve3(pts),36,r,6,false),m);
   return {mat,mesh,box,tube};
  }
- function buildTheater(T){
-  const {mat,mesh,box,tube}=tools(T),g=new T.Group();g.name='yunseul-cinema-sculpture';
-  const pearl=mat(0xfff5ef,{metalness:.23,roughness:.27}),gold=mat(0xe6b882,{metalness:.65,roughness:.28});
-  const glass=mat(0x36516e,{metalness:.5,roughness:.17}),light=mat(0xffc9e6,{emissive:0xff88ce,emissiveIntensity:.7});
-  // Preserve the former 3.65 x 2.80 site exactly. Height, not land area, grows.
-  box(g,pearl,3.65,.16,2.8,0,.04,0);box(g,gold,3.42,.07,2.60,0,.155,0);
-  box(g,glass,3.08,2.7,2.24,0,1.58,0);
-  box(g,pearl,3.30,.15,2.42,0,1.02,0);box(g,gold,3.32,.045,2.44,0,1.12,0);
-  for(const x of [-1.25,1.25])box(g,pearl,.15,.77,.15,x,.59,1.17);
-  for(const x of [-.23,.23])box(g,glass,.43,.75,.04,x,.59,1.145);
-  box(g,gold,.024,.18,.05,0,.57,1.18);
-  box(g,pearl,1.6,.13,.40,0,.97,1.18);
-  // A continuous, black-framed second-storey L display spans front + right.
-  box(g,glass,3.27,1.60,.07,0,2.06,1.17);box(g,glass,.07,1.60,2.31,1.60,2.06,.035);
-  const canvas=document.createElement('canvas');canvas.width=1440;canvas.height=440;
-  const ctx=canvas.getContext('2d'),texture=new T.CanvasTexture(canvas);texture.encoding=T.sRGBEncoding;
-  const frontTex=texture.clone(),sideTex=texture.clone();frontTex.repeat.x=3.2/5.5;sideTex.repeat.x=2.3/5.5;sideTex.offset.x=3.2/5.5;
-  const screenMat=t=>new T.MeshBasicMaterial({map:t,toneMapped:false});
-  mesh(g,new T.PlaneGeometry(3.2,1.48),screenMat(frontTex),0,2.06,1.212);
-  const side=mesh(g,new T.PlaneGeometry(2.3,1.48),screenMat(sideTex),1.642,2.06,.062);side.rotation.y=Math.PI/2;
-  for(const y of [1.29,2.83]){box(g,gold,3.30,.035,.045,0,y,1.23);box(g,gold,.045,.035,2.35,1.66,y,.065)}
-  // Tapered, twisting pearl ribbons replace repetitive apartment-like floors.
-  mesh(g,new T.CylinderGeometry(.38,1.38,4.65,40),glass,0,5.10,-.10).scale.z=.66;
-  for(let k=0;k<7;k++){
-   const pts=[];for(let j=0;j<=42;j++){const u=j/42,a=k*Math.PI*2/7+u*1.28,r=1.51*(1-u)+.30*u;pts.push(new T.Vector3(Math.cos(a)*r,2.93+u*4.9,Math.sin(a)*r*.70-.1))}
-   tube(g,pearl,pts,.105);tube(g,gold,pts.map(v=>v.clone().add(new T.Vector3(.035,0,.015))),.018);
+ // Text is rasterized after the Korean font loads, at the plane's exact aspect ratio.
+ function cinemaSign(T){
+  const canvas=document.createElement('canvas');canvas.width=1536;canvas.height=384;
+  const ctx=canvas.getContext('2d'),tx=new T.CanvasTexture(canvas);tx.encoding=T.sRGBEncoding;tx.anisotropy=8;
+  function paint(){
+   const c=ctx;c.clearRect(0,0,1536,384);c.fillStyle='#fff7ed';c.fillRect(0,0,1536,384);
+   c.strokeStyle='#cfa570';c.lineWidth=12;c.strokeRect(12,12,1512,360);c.lineWidth=2;c.strokeRect(28,28,1480,328);
+   c.textAlign='center';c.textBaseline='middle';c.fillStyle='#385d59';
+   c.font='800 150px "Noto Sans KR",sans-serif';c.fillText('윤슬 극장',768,161);
+   c.fillStyle='#a17546';c.font='600 38px "Noto Sans KR",sans-serif';c.fillText('Y U N S E U L   C I N E M A',768,292);tx.needsUpdate=true;
   }
-  const crown=mesh(g,new T.TorusGeometry(.47,.065,10,60),gold,0,7.86,-.1);crown.rotation.x=Math.PI/2;
-  mesh(g,new T.OctahedronGeometry(.28),light,0,8.28,-.1);
-  tube(g,gold,[new T.Vector3(0,7.85,-.1),new T.Vector3(0,8.65,-.1)],.025);
-  // Real-time anamorphic animation: one panoramic film mapped over both faces.
-  g.userData.display={canvas,ctx,texture,frontTex,sideTex,last:-1};
-  g.userData.footprintRadius=2.35;g.userData.height=8.68;return g;
+  paint();if(document.fonts)document.fonts.load('800 150px "Noto Sans KR"','윤슬 극장').then(paint).catch(()=>{});return tx;
+ }
+ function buildTheater(T){
+  const {mat,mesh,box}=tools(T),g=new T.Group();g.name='yunseul-cinema-pavilion';
+  const pearl=mat(0xfff5e9,{roughness:.38}),gold=mat(0xd8b583,{metalness:.55,roughness:.3});
+  const mint=mat(0xb5d8cb),glass=mat(0x729caa,{metalness:.25,roughness:.18});
+  const frame=mat(0x234b4e),door=mat(0x9bd8db,{metalness:.18,roughness:.2});
+  // Ground floor is unchanged in footprint; ONLY the second floor cantilevers on all four sides.
+  box(g,pearl,3.65,.16,2.8,0,.04,0);box(g,gold,3.42,.07,2.60,0,.155,0);
+  box(g,glass,3.08,1.04,2.24,0,.74,0);
+  for(const x of [-1.42,-.68,.68,1.42])box(g,pearl,.10,1.06,.11,x,.75,1.17);
+  for(const x of [-.23,.23]){box(g,door,.43,.78,.05,x,.60,1.16);box(g,gold,.025,.18,.035,x*.28,.60,1.20)}
+  // Boutique-shopping-center style entrance fascia: no emojis, warped texture, or busy dots.
+  box(g,mint,3.28,.48,.17,0,1.12,1.24);
+  const sign=mesh(g,new T.PlaneGeometry(2.08,.52),new T.MeshBasicMaterial({map:cinemaSign(T),toneMapped:false}),0,1.12,1.34);sign.name='cinema-sign';
+  box(g,pearl,4.20,.18,3.10,0,1.43,0);box(g,gold,4.24,.035,3.14,0,1.54,0);
+  box(g,frame,4.14,1.46,3.04,0,2.28,0);
+  const displays=[];
+  function display(w,x,z,ry,shared){
+   let d=shared;if(!d){const canvas=document.createElement('canvas');canvas.width=Math.round(w/1.30*440);canvas.height=440;
+    const texture=new T.CanvasTexture(canvas);texture.encoding=T.sRGBEncoding;texture.anisotropy=4;
+    d={canvas,ctx:canvas.getContext('2d'),texture,last:-1};displays.push(d)}
+   const o=mesh(g,new T.PlaneGeometry(w,1.30),new T.MeshBasicMaterial({map:d.texture,toneMapped:false}),x,2.28,z);o.rotation.y=ry;o.name='cinema-tv';return d;
+  }
+  const front=display(3.94,0,1.532,0),side=display(2.84,2.082,0,Math.PI/2);
+  display(3.94,0,-1.532,Math.PI,front);display(2.84,-2.082,0,-Math.PI/2,side);
+  box(g,pearl,4.20,.17,3.10,0,3.08,0);box(g,gold,4.24,.035,3.14,0,3.18,0);
+  // The supplied artwork is used verbatim as a two-sided rooftop standee, not AI-redrawn.
+  const base=mesh(g,new T.CylinderGeometry(.85,1,.23,48),mint,0,3.35,0);base.name='liberty-pedestal';
+  const statue=new T.Group();statue.name='liberty-boy-reference-standee';statue.position.set(0,3.47,0);g.add(statue);
+  const loader=new T.TextureLoader();
+  for(const [file,w,h,back] of [['front',3.9*588/804,3.9,false],['back',3.9*435/658,3.9,true]]){
+   const tx=loader.load('uploads/landmarks/liberty-boy-'+file+'.png');tx.encoding=T.sRGBEncoding;tx.anisotropy=8;
+   const m=new T.MeshBasicMaterial({map:tx,transparent:true,alphaTest:.42,toneMapped:false,side:T.FrontSide});
+   const o=mesh(statue,new T.PlaneGeometry(w,h),m,0,h/2,back?-.008:.008);if(back)o.rotation.y=Math.PI;
+   o.name='liberty-boy-'+file;o.castShadow=false;
+  }
+  g.userData.display={displays};g.userData.footprintRadius=2.70;g.userData.height=7.37;
+  updateDisplays(g,0);return g;
  }
  function updateDisplays(g,time){
-  const d=g.userData.display;if(!d||Math.floor(time*24)===d.last)return;d.last=Math.floor(time*24);
-  const c=d.ctx,w=d.canvas.width,h=d.canvas.height,corner=w*3.2/5.5;
-  c.fillStyle='#08172e';c.fillRect(0,0,w,h);
-  const bg=c.createRadialGradient(corner,210,20,corner,210,700);bg.addColorStop(0,'#346e9b');bg.addColorStop(1,'#081326');c.fillStyle=bg;c.fillRect(0,0,w,h);
-  // Receding room edges and corner perspective sell the screen's depth.
-  c.strokeStyle='#6cbce377';c.lineWidth=3;
-  for(let i=0;i<8;i++){const x=i*w/7;c.beginPath();c.moveTo(corner,190);c.lineTo(x,h);c.stroke()}
-  c.strokeRect(38,28,w-76,h-56);c.strokeRect(190,75,w-380,h-150);
-  const z=(Math.sin(time*.8)+1)/2,x=corner+Math.sin(time*.57)*155,y=210+Math.sin(time*1.1)*40,r=57+z*102;
-  c.save();c.translate(x,y);c.rotate(Math.sin(time*.7)*.18);
-  c.shadowColor='#79e5ff';c.shadowBlur=30;
-  // A luminous pearl-whale swims out of the perspective box and across the seam.
-  const body=c.createRadialGradient(-r*.3,-r*.35,4,0,0,r*1.4);body.addColorStop(0,'#ffffff');body.addColorStop(.38,'#b4ecff');body.addColorStop(1,'#547dbd');c.fillStyle=body;
-  c.beginPath();c.ellipse(0,0,r*1.5,r*.73,0,0,Math.PI*2);c.fill();
-  c.beginPath();c.moveTo(-r*1.15,0);c.quadraticCurveTo(-r*2.2,-r*1.05,-r*2.05,-r*.1);c.quadraticCurveTo(-r*2.45,r*.7,-r*1.15,r*.24);c.fill();
-  c.fillStyle='#82acd9';c.beginPath();c.ellipse(0,r*.48,r*.60,r*.17,.45,0,Math.PI*2);c.fill();
-  c.shadowBlur=0;c.fillStyle='#14293f';c.beginPath();c.arc(r*.82,-r*.13,r*.065,0,7);c.fill();c.fillStyle='white';c.beginPath();c.arc(r*.84,-r*.15,r*.022,0,7);c.fill();c.restore();
-  for(let i=0;i<18;i++){const bx=(i*139+Math.sin(time+i)*25)%w,by=h-((time*38+i*71)%h);c.strokeStyle='#c7f1ff99';c.lineWidth=2;c.beginPath();c.arc(bx,by,4+i%5*2,0,7);c.stroke()}
-  c.fillStyle='#e1f7ff';c.font='600 20px sans-serif';c.fillText('YUNSEUL · DREAM IN 3D',54,407);
-  d.texture.needsUpdate=d.frontTex.needsUpdate=d.sideTex.needsUpdate=true;
+  const group=g.userData.display;if(!group)return;
+  for(const d of group.displays){
+   const tick=Math.floor(time*24);if(tick===d.last)continue;d.last=tick;
+   const c=d.ctx,w=d.canvas.width,h=d.canvas.height,scene=Math.floor(time/12)%3,t=time%12;
+   const circle=(x,y,r,color)=>{c.fillStyle=color;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill()};
+   const ellipse=(x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill()};
+   // Bright, self-lit, full-frame cartoons: ocean / candy space / pet playground.
+   const bg=c.createLinearGradient(0,0,0,h);bg.addColorStop(0,['#55c9ff','#a994f7','#8cdeff'][scene]);bg.addColorStop(1,['#b0f4ed','#ffcadb','#e1ffde'][scene]);c.fillStyle=bg;c.fillRect(0,0,w,h);
+   if(scene===0){
+    for(let j=0;j<3;j++){c.fillStyle=['#6bdfef','#42c9e6','#21afda'][j];c.beginPath();c.moveTo(0,h);for(let x=0;x<=w+12;x+=12)c.lineTo(x,290+j*43+Math.sin(x*.012-time*1.6+j)*15);c.lineTo(w,h);c.fill()}
+    const x=w*.5+Math.sin(time*.55)*w*.23,y=190+Math.sin(time*1.7)*29;
+    c.save();c.translate(x,y);c.rotate(Math.sin(time)*.08);
+    c.fillStyle='#587fdd';c.beginPath();c.moveTo(-112,0);c.lineTo(-190,-62);c.quadraticCurveTo(-210,2,-170,30);c.lineTo(-112,22);c.fill();
+    ellipse(0,0,148,85,'#f1fbff');ellipse(-14,38,110,40,'#b6e8ff');ellipse(-15,50,50,16,'#70b5e7');
+    circle(89,-15,12,'#214569');circle(93,-20,4,'white');ellipse(101,11,14,8,'#ff9cba');
+    c.strokeStyle='#214569';c.lineWidth=4;c.beginPath();c.arc(102,9,18,.2,1.8);c.stroke();
+    c.strokeStyle='#f4fdff';c.lineWidth=9;c.lineCap='round';c.beginPath();c.moveTo(16,-79);c.quadraticCurveTo(14,-132,45,-137);c.moveTo(15,-94);c.quadraticCurveTo(-7,-140,-32,-132);c.stroke();c.restore();
+    for(let i=0;i<20;i++){const x=(i*113+Math.sin(time+i)*15)%w,y=h-(time*46+i*61)%h;c.strokeStyle='#ffffffb8';c.lineWidth=3;c.beginPath();c.arc(x,y,5+i%4*3,0,7);c.stroke()}
+   }else if(scene===1){
+    for(let i=0;i<28;i++){const x=(i*137+time*12)%w,y=55+(i*67)%320;circle(x,y,2+2*Math.sin(time*3+i)**2,'#fff9c9')}
+    const px=w*.70,py=180+Math.sin(time)*25;circle(px,py,92,'#ffd47e');
+    c.strokeStyle='#fff4da';c.lineWidth=18;c.beginPath();c.ellipse(px,py,143,30,-.25,0,7);c.stroke();circle(px-27,py-14,9,'#795b77');circle(px+27,py-14,9,'#795b77');
+    const x=w*.25+Math.sin(time)*48,y=190+Math.cos(time*1.5)*50;c.save();c.translate(x,y);c.rotate(.3*Math.sin(time));
+    ellipse(0,0,56,100,'#fff7ee');circle(0,-28,29,'#63c9ef');circle(0,-28,18,'#c7f4ff');
+    c.fillStyle='#ff789c';c.beginPath();c.moveTo(-45,35);c.lineTo(-78,90);c.lineTo(-30,74);c.lineTo(30,74);c.lineTo(78,90);c.lineTo(45,35);c.fill();
+    ellipse(0,108,20+Math.sin(time*15)*5,45,'#ffca5d');ellipse(0,100,11,25,'#fff5b1');c.restore();
+   }else{
+    c.fillStyle='#a7e28c';c.fillRect(0,300,w,140);circle(w-95,76,45,'#ffe67b');
+    for(let i=0;i<6;i++){const x=(i*220-time*23+w*10)%(w+180)-90;ellipse(x,65+i%2*35,60,19,'#ffffffcc')}
+    for(let k=0;k<3;k++){const x=w*(k+1)/4+Math.sin(time*1.5+k)*35,y=225-Math.abs(Math.sin(time*3+k))*58,col=['#fff0df','#e6edff','#ffd7b2'][k];
+     c.save();c.translate(x,y);ellipse(0,60,58,47,col);
+     c.fillStyle=col;c.beginPath();c.moveTo(-61,-20);c.lineTo(-53,-79);c.lineTo(-12,-44);c.lineTo(12,-44);c.lineTo(53,-79);c.lineTo(61,-20);c.fill();ellipse(0,0,70,56,col);
+     circle(-25,-6,10,'#4c455e');circle(25,-6,10,'#4c455e');circle(-22,-10,3,'white');circle(28,-10,3,'white');ellipse(0,12,8,6,'#e78ca4');
+     ellipse(-47,15,13,8,'#ffadc2');ellipse(47,15,13,8,'#ffadc2');c.strokeStyle='#84607b';c.lineWidth=3;c.beginPath();c.arc(0,15,16,.2,2.9);c.stroke();c.restore()}
+    for(let i=0;i<10;i++)circle((i*161+time*45)%w,330+Math.sin(time*2+i)*36,8,['#ffb6cd','#fff4a0','#b9aeff'][i%3]);
+   }
+   // Persistent TV channel badge and progress bar make the motion read as a broadcast.
+   c.fillStyle='#ffffffdf';c.fillRect(24,20,192,43);c.fillStyle='#355a70';c.font='800 23px sans-serif';c.fillText('YUNSEUL TV',38,49);
+   circle(w-37,38,7,'#ff597b');c.fillStyle='#ffffff88';c.fillRect(24,h-17,w-48,4);c.fillStyle='#fff';c.fillRect(24,h-17,(w-48)*t/12,4);
+   d.texture.needsUpdate=true;
+  }
  }
  function buildShoppingCenter(T){
   const {mat,mesh,box,tube}=tools(T),g=new T.Group();g.name='rose-arcade-shopping-center';
