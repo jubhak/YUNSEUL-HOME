@@ -45,7 +45,7 @@ $('#mc').onclick=closeModal;$('#modal').addEventListener('pointerdown',e=>{if(e.
 
 /* ===== 도킹 패널 (게시판 · 질문과 답변 · 방명록 · 포트폴리오 · 지누기) ===== */
 let dockOn=false,dkT=0,dkv=0,wanderT=0,dockPlay=null,isAdmin=false,tabNow='me',pfOpen=0,boardOpen=0,editKind='',editId=0,editorDirty=false,adminToken=sessionStorage.getItem('jng_admin')||'',wysSeq=0;
-let BOARD=[],QNA=[],GB=[],PF=[],SALE=[],THEATER=[],OPERA=[],consults=[],wysSeed={},delPending=null,shopOpen=0,consultNew=0,goodsEdit=0,goodsPics=[];
+let BOARD=[],QNA=[],GB=[],PF=[],SALE=[],THEATER=[],OPERA=[],consults=[],wysSeed={},delPending=null,shopOpen=0,consultNew=0,goodsEdit=0,goodsPics=[],operaCurrentId=0;
 const delBtn=(kind,id)=>isAdmin?`<button type="button" class="del" data-del="${kind}" data-i="${id}" aria-label="삭제" title="삭제"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l1 2h4.5v2h-17v-2H8l1-2zM7 9h2v9H7zm4 0h2v9h-2zm4 0h2v9h-2zM6.5 20.5h11l.8-11.5h-12.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>`:'';
 const editBtn=(kind,id)=>`<button type="button" class="btn gh" data-edit="${kind}" data-i="${id}">수정하기</button>`;
 const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -127,15 +127,29 @@ function theaterPanel(){
  }).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`;
 }
 function operaPanel(){
- const stop=operaOn?'<div class="card"><b>♪ 오페라하우스 음악 재생 중</b><p>밖에서도 노래가 이어져요. 여기서 끄면 바다 소리가 돌아와요.</p><button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button></div>':'';
+ const curTrack=operaOn&&OPERA.find(x=>x.id===operaCurrentId);
+ const stop=operaOn?`<div class="card" style="border:1.5px solid var(--main);background:rgba(255,106,142,0.06)">
+  <div style="display:flex;align-items:center;gap:8px">
+   <span style="font-size:22px">🔊</span>
+   <div>
+    <b style="font-size:15px;color:var(--main)">현재 재생 중</b>
+    <div style="font-weight:700;margin-top:2px">${esc(curTrack?curTrack.title:'노래')}</div>
+   </div>
+  </div>
+  <p style="margin:.4rem 0 .6rem;color:var(--sub);font-size:13px">노래가 끝나면 다음 곡이 이어져요. 다 들으면 처음부터 다시 재생돼요.</p>
+  <button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button>
+ </div>`:'';
  const form=isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목 (비워두면 자동)"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'';
  return `${stop}${form}<div class="media-list">${OPERA.map(x=>{
   const editing=isAdmin&&editKind==='opera'&&editId===x.id;
   if(editing){
    return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 노래 수정</b><input id="opt2_${x.id}" value="${esc(x.title)}" placeholder="노래 제목"><input id="opu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 또는 음원 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="opera-save" data-i="${x.id}">저장</button></div></div>`;
   }
+  const isPlaying=operaOn&&operaCurrentId===x.id;
   const tools=isAdmin?`<button type="button" class="btn gh" data-edit="opera" data-i="${x.id}" style="padding:6px 12px;font-size:13px;flex-shrink:0">수정</button>${delBtn('opera',x.id)}`:'';
-  return `<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
+  const badge=isPlaying?' <span class="badge ok" style="margin-left:6px;font-size:11px;vertical-align:middle">재생 중 ▶</span>':'';
+  const styleOn=isPlaying?'border-color:var(--main);background:rgba(255,106,142,0.08);box-shadow:0 0 0 1px var(--main)':'';
+  return `<div class="media-item${isPlaying?' on':''}" style="${styleOn}"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico" style="${isPlaying?'background:var(--main);color:#fff':''}">${isPlaying?'🔊':'🎵'}</span><span class="mi-body"><b>${esc(x.title)}${badge}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
  }).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`;
 }
 function openTheater(){$('#mt').textContent='🎬 극장';$('#mb').innerHTML=theaterPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
@@ -857,8 +871,29 @@ function stopOpera(){
  if(operaAudio){try{operaAudio.pause();operaAudio.src=''}catch(e){}operaAudio=null}
  if(operaYt){try{if(operaYt.stopVideo)operaYt.stopVideo();if(operaYt.destroy)operaYt.destroy()}catch(e){}operaYt=null}
  const host=$('#operaYtHost');if(host)host.remove();
- operaOn=false;applyVol();refreshOperaPanel();
+ operaOn=false;operaCurrentId=0;applyVol();refreshOperaPanel();
 }
+function playNextOperaTrack(){
+ if(!OPERA.length){stopOpera();return}
+ const curIdx=OPERA.findIndex(x=>x.id===operaCurrentId);
+ const nextIdx=curIdx<0?0:(curIdx+1)%OPERA.length;
+ const nextTrack=OPERA[nextIdx];
+ if(nextTrack){
+  playOperaTrack(nextTrack);
+ }else{
+  stopOpera();
+ }
+}
+addEventListener('message',e=>{
+ if(e.origin!=='https://www.youtube.com'&&e.origin!=='https://www.youtube-nocookie.com')return;
+ let d=e.data;
+ if(typeof d==='string'){try{d=JSON.parse(d)}catch(err){return}}
+ if(!d)return;
+ const isEnded=(d.event==='onStateChange'&&d.info===0)||(d.event==='infoDelivery'&&d.info&&d.info.playerState===0);
+ if(isEnded&&operaOn){
+  playNextOperaTrack();
+ }
+});
 /* Must run synchronously inside the click handler — awaiting YouTube API breaks autoplay. */
 function playOperaIframe(id){
  const host=operaHost();
@@ -876,12 +911,14 @@ function playOperaIframe(id){
   if(f&&f.contentWindow)try{f.contentWindow.postMessage(JSON.stringify({event:'listening',id:1,channel:'opera'}), '*')}catch(e){}
   syncOperaVol();
  };
- setTimeout(kick,400);setTimeout(kick,1200);
+ setTimeout(kick,400);setTimeout(kick,1200);setTimeout(kick,2500);
+ const f=$('#operaYtFrame');
+ if(f)f.onload=()=>setTimeout(kick,300);
 }
 function playOperaTrack(item){
  if(!item)return;
  stopOpera();startAudio();
- operaOn=true;refreshOperaPanel();
+ operaOn=true;operaCurrentId=item.id;refreshOperaPanel();
  const id=item.yt||((String(item.url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)||[])[1]||'');
  if(id){
   playOperaIframe(id);
@@ -891,7 +928,7 @@ function playOperaTrack(item){
   return;
  }
  operaAudio=new Audio(item.url);operaAudio.loop=false;operaAudio.volume=muted?0:vol;
- operaAudio.addEventListener('ended',stopOpera);
+ operaAudio.addEventListener('ended',playNextOperaTrack);
  if(ac)ac.resume();
  applyVol();
  operaAudio.play().then(()=>toast('♪ '+item.title)).catch(()=>{stopOpera();toast('노래를 재생하지 못했어요')});
@@ -2371,10 +2408,12 @@ function itemTick(dt){if(!boy)return;liePose();relaxPose();teaGuestPose();girlSl
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function showBlock(msg){halted=true;try{if(ac&&ac.suspend)ac.suspend()}catch(e){}const app=document.getElementById('app');if(app)app.hidden=true;const el=document.getElementById('block');if(el){el.hidden=false;el.textContent=msg}}
 async function homeGuard(){try{const r=await fetch('/api/home-guard',{cache:'no-store'});if(!r.ok)return false;const j=await r.json();return j.ok===true}catch(e){return false}}
+async function homeGuardRetry(max=5,delay=800){for(let i=0;i<max;i++){if(await homeGuard())return true;if(i<max-1)await sleep(delay)}return false}
 (async()=>{
- if(!(await homeGuard())){showBlock('로딩할 수 없습니다.');return}
+ if(!(await homeGuardRetry(5,800))){showBlock('로딩할 수 없습니다.');return}
  document.getElementById('app').hidden=false;
- setInterval(()=>{if(!halted)homeGuard().then(ok=>{if(!ok&&!halted)showBlock('비정상 접근입니다.')})},20000);
+ let guardFails=0;
+ setInterval(()=>{if(halted)return;homeGuard().then(ok=>{if(ok){guardFails=0}else{guardFails++;if(guardFails>=4&&!halted)showBlock('비정상 접근입니다.')}})},20000);
  const steps=[['글꼴과 바다를 준비하는 중…',async()=>{try{await Promise.race([Promise.all([document.fonts.load('800 40px "Noto Sans KR"','게시판쇼핑센터쇼핑센터문의SHOP'),document.fonts.load('500 16px "Noto Sans KR"','공지사항 NOTICE MAIL'),document.fonts.load('700 16px "Noto Sans KR"','메뉴')]),sleep(3000)])}catch(e){}buildBg()}],
  ['작은 지구를 빚는 중…',buildPlanet],['귀여운 친구를 만드는 중…',buildBoy],['건물과 표지판을 세우는 중…',buildSpots],['나무와 꽃을 심는 중…',buildProps],['친구들을 데려오는 중…',()=>{buildNavigation();buildNpcs()}],['바다 친구들을 부르는 중…',buildSea],['파도 소리를 조율하는 중…',()=>sleep(500)]];
  for(let i=0;i<steps.length;i++){$('#lt').textContent=steps[i][0];await sleep(120);await steps[i][1]();$('#bi').style.width=Math.round((i+1)/steps.length*100)+'%';await sleep(300)}
