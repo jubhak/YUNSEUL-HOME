@@ -595,7 +595,6 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { items: rows.map(r => ({ id: r.id, title: r.title, url: r.url, yt: ytId(r.url), date: dateOf(r.created_at) })) });
     }
     if (req.method === 'POST' && route === '/api/theater') {
-      if (!authed(req)) return send(res, 401, { error: '관리자만 영상을 등록할 수 있어요' });
       const body = await readJson(req);
       const title = clip(body.title, 200), url = mediaLink(body.url);
       if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
@@ -610,7 +609,6 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { items: rows.map(r => ({ id: r.id, title: r.title, url: r.url, yt: ytId(r.url), date: dateOf(r.created_at) })) });
     }
     if (req.method === 'POST' && route === '/api/opera') {
-      if (!authed(req)) return send(res, 401, { error: '관리자만 노래를 등록할 수 있어요' });
       const body = await readJson(req);
       const title = clip(body.title, 200), url = mediaLink(body.url);
       if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
@@ -625,7 +623,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && operaHide) return await hideItem(req, res, 'opera', Number(operaHide[1]));
     send(res, 404, { error: '없는 주소예요' });
   } catch (e) {
-    send(res, 500, { error: '서버에서 처리하지 못했어요' });
+    console.error('API Error:', e);
+    send(res, 500, { error: e.message || '서버에서 처리하지 못했어요' });
   }
 });
 

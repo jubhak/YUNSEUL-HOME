@@ -231,7 +231,7 @@ class ServerManager:
             raise FileNotFoundError(f"API 파일을 찾을 수 없습니다: {entry}")
         node = self.cfg.get("node_exe") or "node"
         self.log(f"Node API 시작: {node} {entry.name}")
-        self._node_proc = self._run([node, entry.name], cwd=Path(self.cfg["api_dir"]), wait=False)  # type: ignore[assignment]
+        self._node_proc = self._run([node, entry.name], cwd=entry.parent, wait=False)  # type: ignore[assignment]
         self._wait_port(self.api_port, timeout=12, label="Node API")
 
     def start_nginx(self) -> None:
