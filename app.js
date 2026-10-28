@@ -82,10 +82,13 @@ function boardDetail(id){const n=BOARD.find(x=>x.id===id);if(!n)return '<p>글�
  const tools=isAdmin?`<div class="row">${editBtn('board',id)}${delBtn('board',id)}</div>`:'';
  return `${back}<div class="card"><div class="nt">${n.emoji} ${esc(n.title)}</div><p>${esc(n.subtitle)}</p><small>${esc(n.date)}</small><div class="prose">${n.body||''}</div>${tools}</div>`}
 function gbCard(x){
- const editing=isAdmin&&editKind==='gb'&&editId===x.id,fresh=isAdmin&&!x.answer&&!editing;
- const ans=x.answer&&!editing?`<div class="ans"><div class="gb-top"><b>👑 관리자 답변</b>${isAdmin?editBtn('gb',x.id)+delBtn('gb-ans',x.id):''}</div><div class="prose">${x.answer}</div></div>`:'';
- const editor=editing?`<div class="fm"><div>${wys('gans'+x.id)}</div><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="gb-ans" data-i="${x.id}">${x.answer?'수정 완료':'답변 등록'}</button></div></div>`:'';
- return `<div class="card gb${fresh?' gb-click':''}" ${fresh?`data-gb="${x.id}" role="button" tabindex="0"`:''}><div class="e">${x.emoji}</div><div><div class="gb-top"><b>${esc(x.name)}</b> <small>${esc(x.date)}</small>${delBtn('gb',x.id)}</div><div class="prose">${x.body||''}</div>${fresh?'<p class="hint2">눌러서 답변하기</p>':''}${ans}${editor}</div></div>`}
+ const editing=isAdmin&&editKind==='gb'&&editId===x.id;
+ const editor=editing?`<div class="fm ans"><div>${wys('gans'+x.id)}</div><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="gb-ans" data-i="${x.id}">${x.answer?'수정 완료':'답변 등록'}</button></div></div>`:'';
+ const answered=x.answer&&!editing?`<div class="ans"><div class="gb-top"><b>👑 관리자 답변</b>${isAdmin?editBtn('gb',x.id)+delBtn('gb-ans',x.id):''}</div><div class="prose">${x.answer}</div></div>`:'';
+ const wait=!editing&&!x.answer&&isAdmin?`<div style="margin-top:8px"><button type="button" class="btn" data-edit="gb" data-i="${x.id}">답변하기</button></div>`:'';
+ const badge=isAdmin||x.answer?`<span class="badge ${x.answer?'ok':'wait'}">${x.answer?'✅ 답변완료':'⏳ 답변대기'}</span>`:'';
+ return `<div class="card gb"><div class="e">${x.emoji}</div><div><div class="gb-top"><div class="qa-title">${badge}<b>${esc(x.name)}</b></div>${delBtn('gb',x.id)}</div><small>${esc(x.date)}</small><div class="prose">${x.body||''}</div>${editor||answered||wait}</div></div>`;
+}
 const won=n=>Number(n).toLocaleString('ko-KR')+'원';
 function goodsPrice(g){return g.onSale?`<div class="gpr"><b>${won(g.salePrice)}</b> <s>${won(g.price)}</s></div>`:`<div class="gpr"><b>${won(g.price)}</b></div>`}
 function goodsDetail(id){const g=SALE.find(x=>x.id===id);if(!g)return '<p>상품을 찾을 수 없어요.</p>';
@@ -111,7 +114,7 @@ const PAGES={
  board:()=>boardOpen?boardDetail(boardOpen):`${isAdmin?`<div class="card fm"><b>✏️ 새 글 쓰기 (관리자)</b><input id="bt" placeholder="제목"><input id="bs" placeholder="부제"><div>${wys('board')}</div><button class="btn" data-act="post">등록</button></div>`:'<p class="hint2">✏️ 글쓰기는 관리자만 할 수 있어요</p>'}<div class="cork">${BOARD.map(n=>`<button type="button" class="note" data-board="${n.id}" style="background:${esc(n.color)};--r:${[-1.2,1,-.6,1.4][n.id%4]}deg"><div class="nt">${n.emoji} ${esc(n.title)}</div><small>${esc(n.date)}</small><p class="sub">${esc(n.subtitle)}</p></button>`).join('')||'<p class="hint2">아직 글이 없어요</p>'}</div>`,
  shop:()=>shopPage(),
  qa:()=>`<div class="card fm"><b>❓ 궁금한 점을 남겨 주세요</b><input id="qn" placeholder="이름"><input id="qt" placeholder="제목"><div>${wys('ask')}</div><button class="btn" data-act="ask">질문 등록</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${QNA.map(qaItem).join('')}`,
- gb:()=>`<div class="card fm"><b>📖 방명록 남기기</b><input id="gn" placeholder="이름"><div>${wys('guest')}</div><button class="btn" data-act="guest">남기기</button></div>${isAdmin?'<p class="hint2">글을 누르면 답변을 쓸 수 있어요</p>':''}${GB.map(gbCard).join('')}`,
+ gb:()=>`<div class="card fm"><b>📖 방명록 남기기</b><input id="gn" placeholder="이름"><div>${wys('guest')}</div><button class="btn" data-act="guest">남기기</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${GB.map(gbCard).join('')}`,
  theater:()=>theaterPanel(),
  opera:()=>operaPanel(),
  cs:()=>`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')||'<p class="hint2">접수된 상담이 없어요</p>'}`};
