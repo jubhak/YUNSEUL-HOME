@@ -49,6 +49,7 @@ let BOARD=[],QNA=[],GB=[],PF=[],SALE=[],THEATER=[],OPERA=[],consults=[],wysSeed=
 const delBtn=(kind,id)=>isAdmin?`<button type="button" class="del" data-del="${kind}" data-i="${id}" aria-label="삭제" title="삭제"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l1 2h4.5v2h-17v-2H8l1-2zM7 9h2v9H7zm4 0h2v9h-2zm4 0h2v9h-2zM6.5 20.5h11l.8-11.5h-12.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>`:'';
 const editBtn=(kind,id)=>`<button type="button" class="btn gh" data-edit="${kind}" data-i="${id}">수정하기</button>`;
 const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const emptyBox=(icon,title='등록된 내용이 없습니다.',desc='')=>`<div class="empty-box"><div class="em-ico">${icon}</div><div class="em-tit">${title}</div>${desc?`<p class="em-desc">${desc}</p>`:''}</div>`;
 const TABS=[['me','👤','지누기'],['pf','💼','포트폴리오'],['board','📌','게시판'],['theater','🎬','극장'],['opera','🎭','오페라'],['shop','🛍️','쇼핑센터'],['qa','❓','질문과 답변'],['gb','📖','방명록']];
 const wys=id=>`<iframe class="wys" data-wys="${esc(id)}" src="/editor/core.html?embed=1" title="내용 편집"></iframe>`;
 function wysHtml(id){return new Promise(resolve=>{const frame=document.querySelector(`[data-wys="${id}"]`);if(!frame||!frame.contentWindow)return resolve('');const req=++wysSeq;const on=e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='yunseul-html'||e.data.id!==req)return;removeEventListener('message',on);resolve(e.data.html||'')};addEventListener('message',on);frame.contentWindow.postMessage({type:'yunseul-get',id:req},location.origin);setTimeout(()=>{removeEventListener('message',on);resolve('')},2000)})}
@@ -103,31 +104,31 @@ function goodsForm(){const g=goodsEdit?SALE.find(x=>x.id===goodsEdit):null;
  return `<div class="card fm"><b>✏️ ${g?'상품 수정':'상품 등록'} (관리자)</b><label class="flb">상품명<input id="gn" value="${esc(g?g.name:'')}" placeholder="상품명"></label><label class="flb">정상 가격<input id="gp" inputmode="numeric" value="${g?g.price:''}" placeholder="10000"></label><label class="flb">할인가<input id="gs" inputmode="numeric" value="${g&&g.salePrice!=null?g.salePrice:''}" placeholder="비워 두면 할인 없음"></label><div class="row" style="margin-top:0"><label class="flb" style="flex:1">할인 시작<input id="gf" type="date" value="${esc(g?g.saleFrom:'')}"></label><label class="flb" style="flex:1">할인 종료<input id="gt" type="date" value="${esc(g?g.saleTo:'')}"></label></div><label class="flb">상품 이미지<input id="gimg" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple></label><div id="gpics" class="gpics">${pics}</div><label class="flb">외부 링크<input id="gl" value="${esc(g?g.link:'')}" placeholder="https://"></label><div class="row">${g?'<button type="button" class="btn gh" data-goods-cancel>취소</button>':''}<button class="btn" data-act="goods-save"${g?` data-i="${g.id}"`:''}>${g?'수정 저장':'상품 등록'}</button></div></div>`}
 function shopPage(){if(shopOpen)return goodsDetail(shopOpen);
  const cards=SALE.map(g=>`<div class="card pf gd" data-goods="${g.id}" role="button" tabindex="0"><div class="gi">${g.images&&g.images[0]?`<img src="${esc(g.images[0])}" alt="">`:'<span>🛍️</span>'}</div><div class="pb"><b>${esc(g.name)}</b>${g.onSale?' <span class="badge ok">할인</span>':''}${goodsPrice(g)}<span class="more">자세히 보기 →</span>${isAdmin?`<div class="row"><button type="button" class="btn gh" data-goods-edit="${g.id}">수정하기</button>${delBtn('goods',g.id)}</div>`:''}</div></div>`).join('');
- return `${isAdmin?goodsForm():''}<p class="hint2">카드를 누르면 상품을 볼 수 있어요</p><div class="pg">${cards||'<p class="hint2">등록된 상품이 아직 없어요</p>'}</div>`}
+ return `${isAdmin?goodsForm():''}${SALE.length?`<p class="hint2">카드를 누르면 상품을 볼 수 있어요</p><div class="pg">${cards}</div>`:emptyBox('🛍️','등록된 내용이 없습니다.','준비 중인 멋진 프로그램과 상품이 곧 찾아옵니다.')}`}
 function consultCard(x){return `<div class="card cs"><div class="gb-top"><b>${esc(x.goodsName)}</b>${x.fresh?'<span class="badge wait">새 접수</span>':''}<small style="margin-left:auto">${esc(x.date)}</small></div><p>접수일시 ${esc(x.date)}</p><p>상품명 ${esc(x.goodsName)}</p><p>이름 ${esc(x.name)}</p><p>직책/직위 ${esc(x.job)}</p><p>연락처 ${esc(x.contact)}</p></div>`}
 const PAGES={
  me:()=>`<div class="hero"><div class="av">🧑‍💻</div><h3>지누기</h3><p class="job">맞춤형 프로그램 기획 · 개발<small>소속 없이 자유롭게 일하는 디지털 노마드</small></p><div>${['#자동화','#AI','#맞춤개발','#납품까지'].map(t=>`<span class="chp">${t}</span>`).join('')}</div><a class="btn" href="mailto:${CONTACT.mail}">✉️ ${CONTACT.mail.toUpperCase()}</a></div>
   <div class="stats"><div><b>1인</b><small>기획부터 납품까지</small></div><div><b>3개월</b><small>무상 하자보수 및 유지보수</small></div><div><b>2일</b><small>견적 회신</small></div></div>
   <h4 class="sec">✨ 할 수 있는 일</h4>
   <div class="bento">${SK.map(x=>`<div class="bk${x.w?' wide':''}" style="--c:${x.c}">${x.n?'<span class="new">NEW</span>':''}<div class="bi">${x.e}</div><b>${x.t}</b><p>${x.p}</p>${x.sols?`<div class="sols">${x.sols.map(s=>`<div class="sol"><b>${s.e} ${s.t}</b><p>${s.p}</p></div>`).join('')}</div>`:''}<div>${x.g.map(g=>`<span class="tg">#${g}</span>`).join('')}</div></div>`).join('')}</div>`,
- pf:()=>pfOpen?pfDetail(pfOpen):`${isAdmin?`<div class="card fm"><b>✏️ 포트폴리오 등록 (관리자)</b><input id="pt" placeholder="제목"><input id="ps" placeholder="부제"><div>${wys('pf')}</div><button class="btn" data-act="pf">등록</button></div>`:''}<p class="hint2">카드를 누르면 상세 내용을 볼 수 있어요</p><div class="pg">${PF.map(x=>`<div class="card pf pfc" data-pf="${x.id}" role="button"><div class="pt" style="background:linear-gradient(135deg,${esc(x.tone)})">${x.emoji}</div><div class="pb"><b>${esc(x.title)}</b><p>${esc(x.subtitle)}</p><span class="more">자세히 보기 →</span></div></div>`).join('')||'<p class="hint2">아직 작품이 없어요</p>'}</div>`,
- board:()=>boardOpen?boardDetail(boardOpen):`${isAdmin?`<div class="card fm"><b>✏️ 새 글 쓰기 (관리자)</b><input id="bt" placeholder="제목"><input id="bs" placeholder="부제"><div>${wys('board')}</div><button class="btn" data-act="post">등록</button></div>`:'<p class="hint2">✏️ 글쓰기는 관리자만 할 수 있어요</p>'}<div class="cork">${BOARD.map(n=>`<button type="button" class="note" data-board="${n.id}" style="background:${esc(n.color)};--r:${[-1.2,1,-.6,1.4][n.id%4]}deg"><div class="nt">${n.emoji} ${esc(n.title)}</div><small>${esc(n.date)}</small><p class="sub">${esc(n.subtitle)}</p></button>`).join('')||'<p class="hint2">아직 글이 없어요</p>'}</div>`,
+ pf:()=>pfOpen?pfDetail(pfOpen):`${isAdmin?`<div class="card fm"><b>✏️ 포트폴리오 등록 (관리자)</b><input id="pt" placeholder="제목"><input id="ps" placeholder="부제"><div>${wys('pf')}</div><button class="btn" data-act="pf">등록</button></div>`:''}${PF.length?`<p class="hint2">카드를 누르면 상세 내용을 볼 수 있어요</p><div class="pg">${PF.map(x=>`<div class="card pf pfc" data-pf="${x.id}" role="button"><div class="pt" style="background:linear-gradient(135deg,${esc(x.tone)})">${x.emoji}</div><div class="pb"><b>${esc(x.title)}</b><p>${esc(x.subtitle)}</p><span class="more">자세히 보기 →</span></div></div>`).join('')}</div>`:emptyBox('💼','등록된 내용이 없습니다.','멋진 프로젝트와 작업 결과물이 곧 업데이트될 예정이에요.')}`,
+ board:()=>boardOpen?boardDetail(boardOpen):`${isAdmin?`<div class="card fm"><b>✏️ 새 글 쓰기 (관리자)</b><input id="bt" placeholder="제목"><input id="bs" placeholder="부제"><div>${wys('board')}</div><button class="btn" data-act="post">등록</button></div>`:'<p class="hint2">✏️ 글쓰기는 관리자만 할 수 있어요</p>'}${BOARD.length?`<div class="cork">${BOARD.map(n=>`<button type="button" class="note" data-board="${n.id}" style="background:${esc(n.color)};--r:${[-1.2,1,-.6,1.4][n.id%4]}deg"><div class="nt">${n.emoji} ${esc(n.title)}</div><small>${esc(n.date)}</small><p class="sub">${esc(n.subtitle)}</p></button>`).join('')}</div>`:emptyBox('📌','등록된 내용이 없습니다.','새로운 소식이나 공지글이 올라오면 이곳에 표시돼요.')}`,
  shop:()=>shopPage(),
- qa:()=>`<div class="card fm"><b>❓ 궁금한 점을 남겨 주세요</b><input id="qn" placeholder="이름"><input id="qt" placeholder="제목"><div>${wys('ask')}</div><button class="btn" data-act="ask">질문 등록</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${QNA.map(qaItem).join('')}`,
- gb:()=>`<div class="card fm"><b>📖 방명록 남기기</b><input id="gn" placeholder="이름"><div>${wys('guest')}</div><button class="btn" data-act="guest">남기기</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${GB.map(gbCard).join('')}`,
+ qa:()=>`<div class="card fm"><b>❓ 궁금한 점을 남겨 주세요</b><input id="qn" placeholder="이름"><input id="qt" placeholder="제목"><div>${wys('ask')}</div><button class="btn" data-act="ask">질문 등록</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${QNA.length?QNA.map(qaItem).join(''):emptyBox('❓','등록된 내용이 없습니다.','궁금한 점을 남겨주시면 정성껏 답변해 드릴게요.')}`,
+ gb:()=>`<div class="card fm"><b>📖 방명록 남기기</b><input id="gn" placeholder="이름"><div>${wys('guest')}</div><button class="btn" data-act="guest">남기기</button></div><p class="hint2">답변은 관리자만 달 수 있어요</p>${GB.length?GB.map(gbCard).join(''):emptyBox('📖','등록된 내용이 없습니다.','윤슬 홈에 방문한 발자취와 따뜻한 한마디를 남겨주세요.')}`,
  theater:()=>theaterPanel(),
  opera:()=>operaPanel(),
- cs:()=>`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')||'<p class="hint2">접수된 상담이 없어요</p>'}`};
+ cs:()=>`${consults.length?`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')}`:emptyBox('📩','등록된 내용이 없습니다.','쇼핑센터에서 구매 상담 접수가 들어오면 이곳에 모여요.')}`};
 function theaterPanel(){
  const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:'';
- return `${form}<div class="media-list">${THEATER.map(x=>{
+ return `${form}${THEATER.length?`<div class="media-list">${THEATER.map(x=>{
   const editing=isAdmin&&editKind==='theater'&&editId===x.id;
   if(editing){
    return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 영상 수정</b><input id="tht2_${x.id}" value="${esc(x.title)}" placeholder="영상 제목"><input id="thu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="theater-save" data-i="${x.id}">저장</button></div></div>`;
   }
   const tools=isAdmin?`<button type="button" class="btn gh" data-edit="theater" data-i="${x.id}" style="padding:6px 12px;font-size:13px;flex-shrink:0">수정</button>${delBtn('theater',x.id)}`:'';
   return `<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
- }).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`;
+ }).join('')}</div>`:emptyBox('🎬','등록된 내용이 없습니다.','즐겁고 유익한 영상이 등록되면 여기서 감상할 수 있어요.')}`;
 }
 function operaPanel(){
  const curTrack=operaOn&&OPERA.find(x=>x.id===operaCurrentId);
@@ -143,7 +144,7 @@ function operaPanel(){
   <button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button>
  </div>`:'';
  const form=isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목 (비워두면 자동)"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'';
- return `${stop}${form}<div class="media-list">${OPERA.map(x=>{
+ return `${stop}${form}${OPERA.length?`<div class="media-list">${OPERA.map(x=>{
   const editing=isAdmin&&editKind==='opera'&&editId===x.id;
   if(editing){
    return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 노래 수정</b><input id="opt2_${x.id}" value="${esc(x.title)}" placeholder="노래 제목"><input id="opu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 또는 음원 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="opera-save" data-i="${x.id}">저장</button></div></div>`;
@@ -153,7 +154,7 @@ function operaPanel(){
   const badge=isPlaying?' <span class="badge ok" style="margin-left:6px;font-size:11px;vertical-align:middle">재생 중 ▶</span>':'';
   const styleOn=isPlaying?'border-color:var(--main);background:rgba(255,106,142,0.08);box-shadow:0 0 0 1px var(--main)':'';
   return `<div class="media-item${isPlaying?' on':''}" style="${styleOn}"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico" style="${isPlaying?'background:var(--main);color:#fff':''}">${isPlaying?'🔊':'🎵'}</span><span class="mi-body"><b>${esc(x.title)}${badge}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
- }).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`;
+ }).join('')}</div>`:emptyBox('🎭','등록된 내용이 없습니다.','아름다운 음악과 노래가 등록되면 플레이리스트가 채워져요.')}`;
 }
 function openTheater(){$('#mt').textContent='🎬 극장';$('#mb').innerHTML=theaterPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function openOpera(){$('#mt').textContent='🎭 오페라하우스';$('#mb').innerHTML=operaPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
