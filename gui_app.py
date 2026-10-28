@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 import sys
 import traceback
+import winreg
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, QEventLoop, Qt, QThread, QTimer, pyqtSignal
@@ -38,6 +40,55 @@ LBL_RESTART = "서버 재시작"
 LBL_RESTARTING = "서버 재시작 중..."
 
 from server_manager import ServerManager, ServiceStatus, app_dir
+
+REG_RUN_PATH = r"Software\Microsoft\Windows\CurrentVersion\Run"
+REG_RUN_KEY = "YUNSEUL-HOME-SERVER"
+
+
+def get_target_exe() -> str:
+    if getattr(sys, "frozen", False):
+        return sys.executable
+    root_exe = app_dir() / "YUNSEUL-HOME-SERVER.exe"
+    if root_exe.exists():
+        return str(root_exe)
+    return str(Path(__file__).resolve())
+
+
+def is_autostart_enabled() -> bool:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_PATH, 0, winreg.KEY_READ) as k:
+            val, _ = winreg.QueryValueEx(k, REG_RUN_KEY)
+            return bool(val)
+    except OSError:
+        return False
+
+
+def set_autostart(enable: bool) -> bool:
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN_PATH, 0, winreg.KEY_SET_VALUE) as k:
+            if enable:
+                exe = get_target_exe()
+                cmd = f'"{exe}" --autostart --tray'
+                winreg.SetValueEx(k, REG_RUN_KEY, 0, winreg.REG_SZ, cmd)
+            else:
+                try:
+                    winreg.DeleteValue(k, REG_RUN_KEY)
+                except FileNotFoundError:
+                    pass
+        return True
+    except PermissionError:
+        try:
+            exe = get_target_exe()
+            if enable:
+                ps_cmd = f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "{REG_RUN_KEY}" -Value \'"{exe}" --autostart --tray\''
+            else:
+                ps_cmd = f'Remove-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "{REG_RUN_KEY}" -ErrorAction SilentlyContinue'
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", f"-NoProfile -Command \"{ps_cmd}\"", None, 0)
+            return True
+        except Exception:
+            return False
+    except OSError:
+        return False
 
 
 DARK = """
@@ -195,6 +246,32 @@ QStatusBar {
     background: #0f172a;
     color: #94a3b8;
 }
+QPushButton#autostartBtnRegister {
+    background-color: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-size: 13px;
+}
+QPushButton#autostartBtnRegister:hover {
+    background-color: #0369a1;
+}
+QPushButton#autostartBtnDelete {
+    background-color: #334155;
+    color: #f1f5f9;
+    font-weight: 700;
+    border: 1px solid #475569;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-size: 13px;
+}
+QPushButton#autostartBtnDelete:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+}
 """
 
 
@@ -343,8 +420,9 @@ class TitleBar(QFrame):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, auto_start: bool = False):
         super().__init__()
+        self._auto_start = auto_start
         self.setWindowTitle("YUNSEUL-HOME Server")
         self.setWindowIcon(make_icon())
         # 네이티브 타이틀바 대신 커스텀 — 커서(이동/pointer) 제어 가능
@@ -422,6 +500,12 @@ class MainWindow(QMainWindow):
         row.addWidget(self.btn_refresh, 1)
         layout.addLayout(row)
 
+        self.btn_autostart = QPushButton()
+        self.btn_autostart.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_autostart.clicked.connect(self.on_autostart_clicked)
+        layout.addWidget(self.btn_autostart)
+        self.sync_autostart_ui()
+
         hint = QLabel(
             f"Nginx :{self.manager.nginx_port}  ·  Node API :{self.manager.api_port}\n"
             "둘 다 켜져야 홈페이지가 정상 동작합니다.\n"
@@ -453,6 +537,39 @@ class MainWindow(QMainWindow):
         self.append_log(f"API: {self.manager.api_entry_path()}")
         self.refresh()
 
+        if self._auto_start:
+            self.append_log("자동 시작 옵션 감지: 서버 구동을 시작합니다...")
+            QTimer.singleShot(600, self.on_start)
+
+    def sync_autostart_ui(self):
+        enabled = is_autostart_enabled()
+        text = "부팅 후 자동 시작 삭제" if enabled else "부팅 후 자동 시작 등록"
+        obj_name = "autostartBtnDelete" if enabled else "autostartBtnRegister"
+        tip = "클릭하면 윈도우 부팅 시 자동 시작 목록에서 삭제합니다." if enabled else "클릭하면 윈도우 부팅 시 서버가 자동으로 켜지도록 등록합니다."
+
+        self.btn_autostart.setText(text)
+        self.btn_autostart.setObjectName(obj_name)
+        self.btn_autostart.setToolTip(tip)
+
+        self.btn_autostart.style().unpolish(self.btn_autostart)
+        self.btn_autostart.style().polish(self.btn_autostart)
+
+        if hasattr(self, "act_autostart") and self.act_autostart:
+            self.act_autostart.setText(text)
+
+    def on_autostart_clicked(self):
+        currently_enabled = is_autostart_enabled()
+        target_state = not currently_enabled
+        ok = set_autostart(target_state)
+        if ok:
+            if target_state:
+                self.append_log("부팅 후 자동 시작이 등록되었습니다. (윈도우 부팅 시 서버 자동 구동)")
+            else:
+                self.append_log("부팅 후 자동 시작 목록에서 삭제되었습니다.")
+            self.sync_autostart_ui()
+        else:
+            self.append_log("부팅 후 자동 시작 설정 변경에 실패했습니다.")
+
     def setup_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable():
             self.append_log("시스템 트레이를 사용할 수 없습니다.")
@@ -471,6 +588,8 @@ class MainWindow(QMainWindow):
         self.act_stop.triggered.connect(self.on_stop)
         self.act_restart = QAction("서버 전체 재시작", self)
         self.act_restart.triggered.connect(self.on_restart)
+        self.act_autostart = QAction(self)
+        self.act_autostart.triggered.connect(self.on_autostart_clicked)
         self.act_quit = QAction("프로그램 종료", self)
         self.act_quit.triggered.connect(self.quit_app)
         self.tray_menu.addAction(self.act_show)
@@ -478,6 +597,8 @@ class MainWindow(QMainWindow):
         self.tray_menu.addAction(self.act_start)
         self.tray_menu.addAction(self.act_stop)
         self.tray_menu.addAction(self.act_restart)
+        self.tray_menu.addSeparator()
+        self.tray_menu.addAction(self.act_autostart)
         self.tray_menu.addSeparator()
         self.tray_menu.addAction(self.act_quit)
         self.tray_menu.aboutToShow.connect(self.sync_tray_menu)
@@ -491,6 +612,11 @@ class MainWindow(QMainWindow):
             return
         # 프로그램 화면 보기는 항상 표시
         self.act_show.setVisible(True)
+        if hasattr(self, "act_autostart") and self.act_autostart:
+            enabled = is_autostart_enabled()
+            self.act_autostart.setText(
+                "부팅 후 자동 시작 삭제" if enabled else "부팅 후 자동 시작 등록"
+            )
         # aboutToShow에서 무거운 상태조회 금지 → 캐시만 사용
         if self._busy:
             self.act_start.setVisible(False)
@@ -819,13 +945,26 @@ def main():
     os.chdir(app_dir())
     if str(app_dir()) not in sys.path:
         sys.path.insert(0, str(app_dir()))
+
+    auto_start = "--autostart" in sys.argv
+    start_minimized = "--tray" in sys.argv or "--minimized" in sys.argv
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # X로 숨겨도 트레이에서 유지
     app.setStyle("Fusion")
     app.setWindowIcon(make_icon())
-    win = MainWindow()
+    win = MainWindow(auto_start=auto_start)
     win.setStyleSheet(DARK)
-    win.show()
+    if not start_minimized:
+        win.show()
+    else:
+        if win.tray:
+            win.tray.showMessage(
+                "YUNSEUL-HOME Server",
+                "서버가 백그라운드(트레이)에서 실행 중입니다.",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000,
+            )
     sys.exit(app.exec())
 
 
@@ -833,5 +972,6 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        traceback.print_exc()
+        with open(app_dir() / "crash.log", "w", encoding="utf-8") as f:
+            traceback.print_exc(file=f)
         raise
