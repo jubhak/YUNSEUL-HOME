@@ -305,6 +305,16 @@ function mediaLink(v) {
   if (s.startsWith('/uploads/') && !s.includes('..')) return s;
   return httpLink(s);
 }
+async function fetchYtTitle(url) {
+  try {
+    const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(3500) });
+    if (!res.ok) return '';
+    const j = await res.json();
+    return clip(j.title, 200) || '';
+  } catch {
+    return '';
+  }
+}
 async function ensureCulture() {
   await pool.query(`CREATE TABLE IF NOT EXISTS theater_clip (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -597,9 +607,13 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && route === '/api/theater') {
       if (!authed(req)) return send(res, 401, { error: '관리자만 영상을 등록할 수 있어요' });
       const body = await readJson(req);
-      const title = clip(body.title, 200), url = mediaLink(body.url);
-      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      let title = clip(body.title, 200);
+      const url = mediaLink(body.url);
       if (!url || !ytId(url)) return send(res, 400, { error: '유튜브 주소를 올바르게 입력해 주세요' });
+      if (!title || title === '유튜브 영상') {
+        const autoTitle = await fetchYtTitle(url);
+        title = autoTitle || title || '유튜브 영상';
+      }
       await pool.query('INSERT INTO theater_clip (title, url) VALUES (?, ?)', [title, url]);
       return send(res, 200, { ok: true });
     }
@@ -623,11 +637,19 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && route === '/api/opera') {
       if (!authed(req)) return send(res, 401, { error: '관리자만 노래를 등록할 수 있어요' });
       const body = await readJson(req);
-      const title = clip(body.title, 200), url = mediaLink(body.url);
-      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      let title = clip(body.title, 200);
+      const url = mediaLink(body.url);
       if (!url) return send(res, 400, { error: '노래 주소(유튜브 또는 음원)를 입력해 주세요' });
       if (!ytId(url) && !/\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(url) && !url.startsWith('/uploads/')) {
         return send(res, 400, { error: '유튜브 주소나 음원 파일 주소를 입력해 주세요' });
+      }
+      if (!title || title === '노래') {
+        if (ytId(url)) {
+          const autoTitle = await fetchYtTitle(url);
+          title = autoTitle || title || '노래';
+        } else {
+          title = title || '노래';
+        }
       }
       await pool.query('INSERT INTO opera_track (title, url) VALUES (?, ?)', [title, url]);
       return send(res, 200, { ok: true });

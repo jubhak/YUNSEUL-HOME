@@ -40,7 +40,7 @@ const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearT
 function shopHtml(){return shopPage()}
 function cartBar(){}
 function openSpot(k){if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
-function closeModal(){if(!$('#ytlayer').hidden){closeYtLayer();return}if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on')}
+function closeModal(){if(!$('#ytlayer').hidden){closeYtLayer();return}if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on');$('#mb').innerHTML=''}
 $('#mc').onclick=closeModal;$('#modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')closeModal()});
 
 /* ===== 도킹 패널 (게시판 · 질문과 답변 · 방명록 · 포트폴리오 · 지누기) ===== */
@@ -164,7 +164,9 @@ $('#admp').addEventListener('keydown',e=>{if(e.key==='Enter')tryAdmin()});
 $('#adm').onclick=()=>{if(isAdmin){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;editKind='';editId=0;consultNew=0;consults=[];if(tabNow==='cs')tabNow='gb';syncAdmin();toast('로그아웃했어요');syncPanels();return}$('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus()};
 async function showConsults(){tabNow='cs';pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;try{const j=await api('/api/consult');consults=j.items.map(x=>Object.assign({},x,{fresh:x.seen==='N'}));consultNew=j.unread;dockRender();if(j.unread){await api('/api/consult/seen',{method:'POST',body:'{}'});consultNew=0;const b=document.querySelector('[data-tab="cs"] .tbad');if(b)b.remove()}}catch(e){toast(e.message)}}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='cs'){showConsults();return}tabNow=b.dataset.tab;pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;dockRender()});
-async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=id=>((document.getElementById(id)||{}).value||'').trim();
+async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t)return;
+ const a=t.dataset.act,formBox=t.closest('.fm, .card, form')||t.closest('#mb, #db')||document;
+ const v=id=>{const el=formBox.querySelector('#'+id)||document.getElementById(id);return ((el||{}).value||'').trim()};
  try{
   if(a==='post'){const body=await wysHtml('board');await api('/api/board',{method:'POST',body:JSON.stringify({title:v('bt'),subtitle:v('bs'),body})});toast('등록했어요');await loadHome()}
   else if(a==='pf'){const body=await wysHtml('pf');await api('/api/portfolio',{method:'POST',body:JSON.stringify({title:v('pt'),subtitle:v('ps'),body})});toast('포트폴리오를 등록했어요');await loadHome()}
@@ -175,18 +177,22 @@ async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t
   else if(a==='pf-save'){const body=await wysHtml('pedit');await api('/api/portfolio/'+t.dataset.i,{method:'POST',body:JSON.stringify({title:v('pt2'),subtitle:v('ps2'),body})});editKind='';editId=0;toast('포트폴리오를 수정했어요');await loadHome()}
   else if(a==='guest'){const body=await wysHtml('guest');await api('/api/guestbook',{method:'POST',body:JSON.stringify({name:v('gn'),body})});toast('방명록을 남겼어요');await loadHome()}
   else if(a==='goods-save'){const body={name:v('gn'),price:v('gp'),salePrice:v('gs'),saleFrom:v('gf'),saleTo:v('gt'),link:v('gl'),images:goodsPics.slice()};await api(t.dataset.i?'/api/goods/'+t.dataset.i:'/api/goods',{method:'POST',body:JSON.stringify(body)});const edited=!!t.dataset.i;goodsEdit=0;goodsPics=[];toast(edited?'상품을 수정했어요':'상품을 등록했어요');await loadHome()}
-  else if(a==='consult'){await api('/api/consult',{method:'POST',body:JSON.stringify({goodsId:+t.dataset.i,contact:v('cc'),name:v('cn'),job:v('cj')})});toast('구매 상담을 접수했어요');['cc','cn','cj'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const box=document.getElementById('csbox');if(box)box.hidden=true}
+  else if(a==='consult'){await api('/api/consult',{method:'POST',body:JSON.stringify({goodsId:+t.dataset.i,contact:v('cc'),name:v('cn'),job:v('cj')})});toast('구매 상담을 접수했어요');['cc','cn','cj'].forEach(id=>{const el=formBox.querySelector('#'+id)||document.getElementById(id);if(el)el.value=''});const box=document.getElementById('csbox');if(box)box.hidden=true}
   else if(a==='theater-add'){
-    const title=v('tht'),url=v('thu');
+    let title=v('tht'),url=v('thu');
+    if(!url&&/^https?:\/\//i.test(title)){url=title;title=''}
     if(!url){toast('유튜브 주소를 입력해 주세요');return}
-    await api('/api/theater',{method:'POST',body:JSON.stringify({title:title||'유튜브 영상',url})});
+    await api('/api/theater',{method:'POST',body:JSON.stringify({title:title||'',url})});
     toast('영상을 등록했어요');
-    const ti=document.getElementById('tht'),ui=document.getElementById('thu');if(ti)ti.value='';if(ui)ui.value='';
+    const ti=formBox.querySelector('#tht')||document.getElementById('tht');
+    const ui=formBox.querySelector('#thu')||document.getElementById('thu');
+    if(ti)ti.value='';if(ui)ui.value='';
     await loadHome();
     syncPanels();
   }
   else if(a==='theater-save'){
-    const title=v('tht2_'+t.dataset.i),url=v('thu2_'+t.dataset.i);
+    let title=v('tht2_'+t.dataset.i),url=v('thu2_'+t.dataset.i);
+    if(!url&&/^https?:\/\//i.test(title)){url=title;title=''}
     if(!url){toast('유튜브 주소를 입력해 주세요');return}
     await api('/api/theater/'+t.dataset.i,{method:'POST',body:JSON.stringify({title:title||'유튜브 영상',url})});
     editKind='';editId=0;
@@ -195,16 +201,20 @@ async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t
     syncPanels();
   }
   else if(a==='opera-add'){
-    const title=v('opt'),url=v('opu');
+    let title=v('opt'),url=v('opu');
+    if(!url&&/^https?:\/\//i.test(title)){url=title;title=''}
     if(!url){toast('음원/유튜브 주소를 입력해 주세요');return}
-    await api('/api/opera',{method:'POST',body:JSON.stringify({title:title||'노래',url})});
+    await api('/api/opera',{method:'POST',body:JSON.stringify({title:title||'',url})});
     toast('노래를 등록했어요');
-    const ti=document.getElementById('opt'),ui=document.getElementById('opu');if(ti)ti.value='';if(ui)ui.value='';
+    const ti=formBox.querySelector('#opt')||document.getElementById('opt');
+    const ui=formBox.querySelector('#opu')||document.getElementById('opu');
+    if(ti)ti.value='';if(ui)ui.value='';
     await loadHome();
     syncPanels();
   }
   else if(a==='opera-save'){
-    const title=v('opt2_'+t.dataset.i),url=v('opu2_'+t.dataset.i);
+    let title=v('opt2_'+t.dataset.i),url=v('opu2_'+t.dataset.i);
+    if(!url&&/^https?:\/\//i.test(title)){url=title;title=''}
     if(!url){toast('음원/유튜브 주소를 입력해 주세요');return}
     await api('/api/opera/'+t.dataset.i,{method:'POST',body:JSON.stringify({title:title||'노래',url})});
     editKind='';editId=0;
