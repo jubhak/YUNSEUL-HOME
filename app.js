@@ -840,7 +840,7 @@ function startAudio(){
 }
 const SP='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>';
 const volIcon=()=>{const lv=muted||vol===0?0:vol<.34?1:vol<.67?2:3;$('#snd').innerHTML=SP+(lv===0?'<path d="M16 9.5l5 5M21 9.5l-5 5"/>':lv===1?'<path d="M15.5 10.5a2.5 2.5 0 0 1 0 3"/>':lv===2?'<path d="M15.5 9a4.5 4.5 0 0 1 0 6"/>':'<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>')+'</svg>'};
-let operaOn=false,operaAudio=null,operaYt=null;
+let operaOn=false,theaterOn=false,operaAudio=null,operaYt=null;
 function operaHost(){
  let host=$('#operaYtHost');
  if(!host){host=document.createElement('div');host.id='operaYtHost';host.setAttribute('aria-hidden','true');
@@ -862,7 +862,7 @@ function syncOperaVol(){
   if(muted||vol===0){if(operaYt.mute)operaYt.mute()}else if(operaYt.unMute)operaYt.unMute();
  }catch(e){}
 }
-const applyVol=()=>{volIcon();if(ac){mast.gain.setTargetAtTime(operaOn?0:mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(sg(),ac.currentTime,.1);ac.resume()}syncOperaVol()};
+const applyVol=()=>{volIcon();const bgMuted=operaOn||theaterOn;if(ac){mast.gain.setTargetAtTime(bgMuted?0:mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(theaterOn?0:sg(),ac.currentTime,.1);ac.resume()}syncOperaVol()};
 $('#snd').onclick=()=>{if(vol===0){vol=.2;$('#vol').value=20;muted=false}else muted=!muted;applyVol()};
 $('#vol').addEventListener('input',e=>{vol=e.target.value/100;muted=false;applyVol()});
 volIcon();
@@ -890,7 +890,13 @@ addEventListener('message',e=>{
  if(typeof d==='string'){try{d=JSON.parse(d)}catch(err){return}}
  if(!d)return;
  const isEnded=(d.event==='onStateChange'&&d.info===0)||(d.event==='infoDelivery'&&d.info&&d.info.playerState===0);
- if(isEnded&&operaOn){
+ if(!isEnded)return;
+ if(theaterOn&&!$('#ytlayer').hidden){
+  closeYtLayer();
+  toast('🎬 영상이 끝나 바다 소리가 돌아왔어요');
+  return;
+ }
+ if(operaOn){
   playNextOperaTrack();
  }
 });
@@ -917,6 +923,7 @@ function playOperaIframe(id){
 }
 function playOperaTrack(item){
  if(!item)return;
+ closeYtLayer();
  stopOpera();startAudio();
  operaOn=true;operaCurrentId=item.id;refreshOperaPanel();
  const id=item.yt||((String(item.url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)||[])[1]||'');
@@ -936,10 +943,27 @@ function playOperaTrack(item){
 document.addEventListener('click',e=>{if(e.target.closest('[data-opera-stop]')){stopOpera();toast('바다 소리가 돌아왔어요')}});
 function openYtLayer(item){
  if(!item||!item.yt){toast('재생할 유튜브 영상이 없어요');return}
+ stopOpera();
+ theaterOn=true;
+ applyVol();
  const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer.querySelector('.ytbox');
- $('#ytt').textContent=item.title;frame.src='https://www.youtube-nocookie.com/embed/'+item.yt+'?autoplay=1&rel=0';box.classList.remove('fs');$('#ytfs').textContent='⛶ 전체보기';layer.hidden=false;modalOpen=true;
+ $('#ytt').textContent=item.title;frame.src=`https://www.youtube-nocookie.com/embed/${item.yt}?autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;box.classList.remove('fs');$('#ytfs').textContent='⛶ 전체보기';layer.hidden=false;modalOpen=true;
+ const kick=()=>{if(frame&&frame.contentWindow)try{frame.contentWindow.postMessage(JSON.stringify({event:'listening',id:2,channel:'theater'}),'*')}catch(e){}};
+ setTimeout(kick,400);setTimeout(kick,1200);setTimeout(kick,2500);
+ frame.onload=()=>setTimeout(kick,300);
 }
-function closeYtLayer(){const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer&&layer.querySelector('.ytbox');if(!layer||layer.hidden)return;frame.src='';if(box)box.classList.remove('fs');layer.hidden=true;if(!dockOn&&!$('#modal').classList.contains('on'))modalOpen=false}
+function closeYtLayer(){
+ const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer&&layer.querySelector('.ytbox');
+ if(!layer||layer.hidden)return;
+ frame.src='';
+ if(box)box.classList.remove('fs');
+ layer.hidden=true;
+ if(!dockOn&&!$('#modal').classList.contains('on'))modalOpen=false;
+ if(theaterOn){
+  theaterOn=false;
+  applyVol();
+ }
+}
 $('#ytx').onclick=closeYtLayer;
 $('#ytfs').onclick=()=>{const box=$('#ytlayer').querySelector('.ytbox'),on=box.classList.toggle('fs');$('#ytfs').textContent=on?'⤢ 창으로':'⛶ 전체보기'};
 $('#ytlayer').addEventListener('pointerdown',e=>{if(e.target.id==='ytlayer')closeYtLayer()});
