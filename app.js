@@ -53,7 +53,8 @@ const TABS=[['me','👤','지누기'],['pf','💼','포트폴리오'],['board','
 const wys=id=>`<iframe class="wys" data-wys="${esc(id)}" src="/editor/core.html?embed=1" title="내용 편집"></iframe>`;
 function wysHtml(id){return new Promise(resolve=>{const frame=document.querySelector(`[data-wys="${id}"]`);if(!frame||!frame.contentWindow)return resolve('');const req=++wysSeq;const on=e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='yunseul-html'||e.data.id!==req)return;removeEventListener('message',on);resolve(e.data.html||'')};addEventListener('message',on);frame.contentWindow.postMessage({type:'yunseul-get',id:req},location.origin);setTimeout(()=>{removeEventListener('message',on);resolve('')},2000)})}
 async function api(path,opt={}){const headers=Object.assign({},opt.headers||{});if(opt.body)headers['Content-Type']='application/json';if(adminToken)headers.Authorization='Bearer '+adminToken;const r=await fetch(path,Object.assign({},opt,{headers}));const j=await r.json().catch(()=>({}));if(r.status===401&&path!=='/api/admin/login'){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;syncAdmin()}if(!r.ok)throw new Error(j.error||'요청에 실패했어요');return j}
-async function loadHome(){try{const [b,q,g,p,goods,th,op]=await Promise.all([api('/api/board'),api('/api/qna'),api('/api/guestbook'),api('/api/portfolio'),api('/api/goods'),api('/api/theater'),api('/api/opera')]);BOARD=b.items;QNA=q.items;GB=g.items;PF=p.items;SALE=goods.items;THEATER=th.items;OPERA=op.items;if(adminToken){try{const cs=await api('/api/consult');consults=cs.items;consultNew=cs.unread}catch(e){consults=[];consultNew=0}}else{consults=[];consultNew=0}if(dockOn)dockRender(true);if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel()}catch(e){toast('목록을 불러오지 못했어요')}}
+function syncPanels(){if(dockOn)dockRender(true);if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel()}
+async function loadHome(){try{const [b,q,g,p,goods,th,op]=await Promise.all([api('/api/board'),api('/api/qna'),api('/api/guestbook'),api('/api/portfolio'),api('/api/goods'),api('/api/theater'),api('/api/opera')]);BOARD=b.items;QNA=q.items;GB=g.items;PF=p.items;SALE=goods.items;THEATER=th.items;OPERA=op.items;if(adminToken){try{const cs=await api('/api/consult');consults=cs.items;consultNew=cs.unread}catch(e){consults=[];consultNew=0}}else{consults=[];consultNew=0}syncPanels()}catch(e){toast('목록을 불러오지 못했어요')}}
 const qaItem=x=>{
  const editing=isAdmin&&editKind==='qa'&&editId===x.id;
  const editor=editing?`<div class="fm ans"><div>${wys('ans'+x.id)}</div><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="ans" data-i="${x.id}">${x.answer?'수정 완료':'답변 등록'}</button></div></div>`:'';
@@ -114,8 +115,29 @@ const PAGES={
  theater:()=>theaterPanel(),
  opera:()=>operaPanel(),
  cs:()=>`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')||'<p class="hint2">접수된 상담이 없어요</p>'}`};
-function theaterPanel(){const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:'';return `${form}<div class="media-list">${THEATER.map(x=>`<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('theater',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`}
-function operaPanel(){const stop=operaOn?'<div class="card"><b>♪ 오페라하우스 음악 재생 중</b><p>밖에서도 노래가 이어져요. 여기서 끄면 바다 소리가 돌아와요.</p><button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button></div>':'';const form=isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목 (비워두면 자동)"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'';return `${stop}${form}<div class="media-list">${OPERA.map(x=>`<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('opera',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`}
+function theaterPanel(){
+ const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:'';
+ return `${form}<div class="media-list">${THEATER.map(x=>{
+  const editing=isAdmin&&editKind==='theater'&&editId===x.id;
+  if(editing){
+   return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 영상 수정</b><input id="tht2_${x.id}" value="${esc(x.title)}" placeholder="영상 제목"><input id="thu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="theater-save" data-i="${x.id}">저장</button></div></div>`;
+  }
+  const tools=isAdmin?`<button type="button" class="btn gh" data-edit="theater" data-i="${x.id}" style="padding:6px 12px;font-size:13px;flex-shrink:0">수정</button>${delBtn('theater',x.id)}`:'';
+  return `<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
+ }).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`;
+}
+function operaPanel(){
+ const stop=operaOn?'<div class="card"><b>♪ 오페라하우스 음악 재생 중</b><p>밖에서도 노래가 이어져요. 여기서 끄면 바다 소리가 돌아와요.</p><button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button></div>':'';
+ const form=isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목 (비워두면 자동)"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'';
+ return `${stop}${form}<div class="media-list">${OPERA.map(x=>{
+  const editing=isAdmin&&editKind==='opera'&&editId===x.id;
+  if(editing){
+   return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 노래 수정</b><input id="opt2_${x.id}" value="${esc(x.title)}" placeholder="노래 제목"><input id="opu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 또는 음원 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="opera-save" data-i="${x.id}">저장</button></div></div>`;
+  }
+  const tools=isAdmin?`<button type="button" class="btn gh" data-edit="opera" data-i="${x.id}" style="padding:6px 12px;font-size:13px;flex-shrink:0">수정</button>${delBtn('opera',x.id)}`:'';
+  return `<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${tools}</div>`;
+ }).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`;
+}
 function openTheater(){$('#mt').textContent='🎬 극장';$('#mb').innerHTML=theaterPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function openOpera(){$('#mt').textContent='🎭 오페라하우스';$('#mb').innerHTML=operaPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function syncAdmin(){const b=$('#adm');b.classList.toggle('on',isAdmin);b.title=isAdmin?'로그아웃':'관리자';b.setAttribute('aria-label',isAdmin?'관리자 로그아웃':'관리자')}
@@ -139,7 +161,7 @@ addEventListener('message',e=>{if(e.origin!==location.origin||!e.data)return;if(
 async function tryAdmin(){const password=$('#admp').value;try{const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password})});adminToken=j.token;sessionStorage.setItem('jng_admin',adminToken);isAdmin=true;$('#admp').value='';$('#admlock').classList.remove('on');syncAdmin();toast('관리자 모드예요');await loadHome()}catch(e){toast(e.message)}}
 $('#admok').onclick=tryAdmin;$('#admno').onclick=()=>{$('#admp').value='';$('#admlock').classList.remove('on')};
 $('#admp').addEventListener('keydown',e=>{if(e.key==='Enter')tryAdmin()});
-$('#adm').onclick=()=>{if(isAdmin){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;editKind='';editId=0;consultNew=0;consults=[];if(tabNow==='cs')tabNow='gb';syncAdmin();toast('로그아웃했어요');if(dockOn)dockRender(true);if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel();return}$('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus()};
+$('#adm').onclick=()=>{if(isAdmin){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;editKind='';editId=0;consultNew=0;consults=[];if(tabNow==='cs')tabNow='gb';syncAdmin();toast('로그아웃했어요');syncPanels();return}$('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus()};
 async function showConsults(){tabNow='cs';pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;try{const j=await api('/api/consult');consults=j.items.map(x=>Object.assign({},x,{fresh:x.seen==='N'}));consultNew=j.unread;dockRender();if(j.unread){await api('/api/consult/seen',{method:'POST',body:'{}'});consultNew=0;const b=document.querySelector('[data-tab="cs"] .tbad');if(b)b.remove()}}catch(e){toast(e.message)}}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='cs'){showConsults();return}tabNow=b.dataset.tab;pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;dockRender()});
 async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=id=>((document.getElementById(id)||{}).value||'').trim();
@@ -161,7 +183,16 @@ async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t
     toast('영상을 등록했어요');
     const ti=document.getElementById('tht'),ui=document.getElementById('thu');if(ti)ti.value='';if(ui)ui.value='';
     await loadHome();
-    if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();
+    syncPanels();
+  }
+  else if(a==='theater-save'){
+    const title=v('tht2_'+t.dataset.i),url=v('thu2_'+t.dataset.i);
+    if(!url){toast('유튜브 주소를 입력해 주세요');return}
+    await api('/api/theater/'+t.dataset.i,{method:'POST',body:JSON.stringify({title:title||'유튜브 영상',url})});
+    editKind='';editId=0;
+    toast('영상을 수정했어요');
+    await loadHome();
+    syncPanels();
   }
   else if(a==='opera-add'){
     const title=v('opt'),url=v('opu');
@@ -170,7 +201,16 @@ async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t
     toast('노래를 등록했어요');
     const ti=document.getElementById('opt'),ui=document.getElementById('opu');if(ti)ti.value='';if(ui)ui.value='';
     await loadHome();
-    if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel();
+    syncPanels();
+  }
+  else if(a==='opera-save'){
+    const title=v('opt2_'+t.dataset.i),url=v('opu2_'+t.dataset.i);
+    if(!url){toast('음원/유튜브 주소를 입력해 주세요');return}
+    await api('/api/opera/'+t.dataset.i,{method:'POST',body:JSON.stringify({title:title||'노래',url})});
+    editKind='';editId=0;
+    toast('노래를 수정했어요');
+    await loadHome();
+    syncPanels();
   }
   else if(a==='adm-open'){
     $('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus();
@@ -201,6 +241,8 @@ function openWallet(){if(snack)endSnack();if(walletOpen){closeModal();return}wal
 $('#wal').onclick=openWallet;$('#menub').onclick=()=>{if(dockOn){requestCloseDock();return}if(walletOpen)closeModal();openDock('board')};walBadge();
 $('#mb').addEventListener('click',e=>{
  const del=e.target.closest('[data-del]');if(del){askDel(del.dataset.del,+del.dataset.i);return}
+ const ed=e.target.closest('[data-edit]');if(ed){beginEdit(ed.dataset.edit,+ed.dataset.i);return}
+ if(e.target.closest('[data-edit-cancel]')){editKind='';editId=0;syncPanels();return}
  const wear=e.target.closest('[data-wear]'),eat=e.target.closest('[data-eat]');
  if(wear||eat){const box=(wear||eat).parentElement.parentElement.querySelector('.who');if(box)box.hidden=!box.hidden;return}
  const off=e.target.closest('[data-off]');if(off){wearOn[off.dataset.off]='';saveLook();applyLook();refreshWallet();toast('벗겼어요');return}
@@ -208,10 +250,10 @@ $('#mb').addEventListener('click',e=>{
  const feed=e.target.closest('[data-feed]');if(feed){startSnack(feed.dataset.item,feed.dataset.feed);return}
  const pl=e.target.closest('[data-place]');if(pl){togglePlace(pl.dataset.place);refreshWallet();return}
 });
-function beginEdit(kind,id){editKind=kind;editId=id;if(kind==='qa'){const item=QNA.find(q=>q.id===id);wysSeed['ans'+id]=item?item.answer||'':''}else if(kind==='gb'){const item=GB.find(g=>g.id===id);wysSeed['gans'+id]=item?item.answer||'':''}else if(kind==='board'){const item=BOARD.find(n=>n.id===id);wysSeed.bedit=item?item.body||'':''}else if(kind==='pf'){const item=PF.find(p=>p.id===id);wysSeed.pedit=item?item.body||'':''}dockRender(true)}
+function beginEdit(kind,id){editKind=kind;editId=id;if(kind==='qa'){const item=QNA.find(q=>q.id===id);wysSeed['ans'+id]=item?item.answer||'':''}else if(kind==='gb'){const item=GB.find(g=>g.id===id);wysSeed['gans'+id]=item?item.answer||'':''}else if(kind==='board'){const item=BOARD.find(n=>n.id===id);wysSeed.bedit=item?item.body||'':''}else if(kind==='pf'){const item=PF.find(p=>p.id===id);wysSeed.pedit=item?item.body||'':''}syncPanels()}
 function paintPics(){const box=$('#gpics');if(!box)return;box.innerHTML=goodsPics.map((u,i)=>`<span class="gp"><img src="${esc(u)}" alt="상품 이미지"><button type="button" data-gimg-x="${i}" aria-label="이미지 빼기">✕</button></span>`).join('')}
 $('#db').addEventListener('change',async e=>{if(e.target.id!=='gimg')return;const files=[...e.target.files];e.target.value='';if(!files.length)return;if(goodsPics.length+files.length>8){toast('이미지는 8장까지 올릴 수 있어요');return}try{for(const f of files){const fd=new FormData();fd.append('file',f,f.name);const r=await fetch('/api/upload',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'이미지를 올리지 못했어요');goodsPics.push(j.url)}paintPics()}catch(err){toast(err.message)}});
-$('#db').addEventListener('click',e=>{const del=e.target.closest('[data-del]');if(del){askDel(del.dataset.del,+del.dataset.i);return}if(e.target.closest('[data-edit-cancel]')){editKind='';editId=0;dockRender(true);return}if(e.target.closest('[data-goods-cancel]')){goodsEdit=0;goodsPics=[];dockRender();return}const gx=e.target.closest('[data-gimg-x]');if(gx){goodsPics.splice(+gx.dataset.gimgX,1);paintPics();return}const ge=e.target.closest('[data-goods-edit]');if(ge){const item=SALE.find(x=>x.id===+ge.dataset.goodsEdit);goodsEdit=item?item.id:0;goodsPics=item?[...(item.images||[])]:[];shopOpen=0;dockRender();return}const gi=e.target.closest('[data-gimg]');if(gi&&String(gi.dataset.gimg||'').startsWith('/uploads/')){const main=$('#gmain');if(main)main.src=gi.dataset.gimg;document.querySelectorAll('[data-gimg]').forEach(b=>b.classList.toggle('on',b===gi));return}const co=e.target.closest('[data-consult-open]');if(co){const box=document.getElementById('csbox');if(box)box.hidden=!box.hidden;return}const ed=e.target.closest('[data-edit]');if(ed){beginEdit(ed.dataset.edit,+ed.dataset.i);return}const gb=e.target.closest('[data-gb]');if(gb&&!e.target.closest('button,a')){beginEdit('gb',+gb.dataset.gb);return}const c=e.target.closest('[data-pf]');if(c){pfOpen=+c.dataset.pf;editKind='';editId=0;dockRender();return}const gd=e.target.closest('[data-goods]');if(gd&&!e.target.closest('button,a')){shopOpen=+gd.dataset.goods;dockRender();return}const n=e.target.closest('[data-board]');if(n){boardOpen=+n.dataset.board;editKind='';editId=0;dockRender();return}if(e.target.closest('[data-shop-back]')){shopOpen=0;dockRender();return}if(e.target.closest('[data-back]')){pfOpen=0;editKind='';editId=0;dockRender();return}if(e.target.closest('[data-board-back]')){boardOpen=0;editKind='';editId=0;dockRender();return}});
+$('#db').addEventListener('click',e=>{const del=e.target.closest('[data-del]');if(del){askDel(del.dataset.del,+del.dataset.i);return}if(e.target.closest('[data-edit-cancel]')){editKind='';editId=0;syncPanels();return}if(e.target.closest('[data-goods-cancel]')){goodsEdit=0;goodsPics=[];syncPanels();return}const gx=e.target.closest('[data-gimg-x]');if(gx){goodsPics.splice(+gx.dataset.gimgX,1);paintPics();return}const ge=e.target.closest('[data-goods-edit]');if(ge){const item=SALE.find(x=>x.id===+ge.dataset.goodsEdit);goodsEdit=item?item.id:0;goodsPics=item?[...(item.images||[])]:[];shopOpen=0;syncPanels();return}const gi=e.target.closest('[data-gimg]');if(gi&&String(gi.dataset.gimg||'').startsWith('/uploads/')){const main=$('#gmain');if(main)main.src=gi.dataset.gimg;document.querySelectorAll('[data-gimg]').forEach(b=>b.classList.toggle('on',b===gi));return}const co=e.target.closest('[data-consult-open]');if(co){const box=document.getElementById('csbox');if(box)box.hidden=!box.hidden;return}const ed=e.target.closest('[data-edit]');if(ed){beginEdit(ed.dataset.edit,+ed.dataset.i);return}const gb=e.target.closest('[data-gb]');if(gb&&!e.target.closest('button,a')){beginEdit('gb',+gb.dataset.gb);return}const c=e.target.closest('[data-pf]');if(c){pfOpen=+c.dataset.pf;editKind='';editId=0;syncPanels();return}const gd=e.target.closest('[data-goods]');if(gd&&!e.target.closest('button,a')){shopOpen=+gd.dataset.goods;syncPanels();return}const n=e.target.closest('[data-board]');if(n){boardOpen=+n.dataset.board;editKind='';editId=0;syncPanels();return}if(e.target.closest('[data-shop-back]')){shopOpen=0;syncPanels();return}if(e.target.closest('[data-back]')){pfOpen=0;editKind='';editId=0;syncPanels();return}if(e.target.closest('[data-board-back]')){boardOpen=0;editKind='';editId=0;syncPanels();return}});
 loadHome();if(adminToken)api('/api/admin/session').then(()=>{isAdmin=true;syncAdmin();if(dockOn)dockRender(true)}).catch(()=>{adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;syncAdmin()});
 
 /* ===== Three.js ===== */

@@ -603,6 +603,17 @@ const server = http.createServer(async (req, res) => {
       await pool.query('INSERT INTO theater_clip (title, url) VALUES (?, ?)', [title, url]);
       return send(res, 200, { ok: true });
     }
+    const theaterEdit = route.match(/^\/api\/theater\/(\d+)$/);
+    if (req.method === 'POST' && theaterEdit) {
+      if (!authed(req)) return send(res, 401, { error: '관리자만 수정할 수 있어요' });
+      const body = await readJson(req);
+      const title = clip(body.title, 200), url = mediaLink(body.url);
+      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      if (!url || !ytId(url)) return send(res, 400, { error: '유튜브 주소를 올바르게 입력해 주세요' });
+      const id = Number(theaterEdit[1]);
+      await pool.query('UPDATE theater_clip SET title = ?, url = ? WHERE id = ?', [title, url, id]);
+      return send(res, 200, { ok: true });
+    }
     const theaterHide = route.match(/^\/api\/theater\/(\d+)\/hide$/);
     if (req.method === 'POST' && theaterHide) return await hideItem(req, res, 'theater', Number(theaterHide[1]));
     if (req.method === 'GET' && route === '/api/opera') {
@@ -619,6 +630,20 @@ const server = http.createServer(async (req, res) => {
         return send(res, 400, { error: '유튜브 주소나 음원 파일 주소를 입력해 주세요' });
       }
       await pool.query('INSERT INTO opera_track (title, url) VALUES (?, ?)', [title, url]);
+      return send(res, 200, { ok: true });
+    }
+    const operaEdit = route.match(/^\/api\/opera\/(\d+)$/);
+    if (req.method === 'POST' && operaEdit) {
+      if (!authed(req)) return send(res, 401, { error: '관리자만 수정할 수 있어요' });
+      const body = await readJson(req);
+      const title = clip(body.title, 200), url = mediaLink(body.url);
+      if (!title) return send(res, 400, { error: '제목을 입력해 주세요' });
+      if (!url) return send(res, 400, { error: '노래 주소(유튜브 또는 음원)를 입력해 주세요' });
+      if (!ytId(url) && !/\.(mp3|m4a|ogg|wav|aac)(\?|$)/i.test(url) && !url.startsWith('/uploads/')) {
+        return send(res, 400, { error: '유튜브 주소나 음원 파일 주소를 입력해 주세요' });
+      }
+      const id = Number(operaEdit[1]);
+      await pool.query('UPDATE opera_track SET title = ?, url = ? WHERE id = ?', [title, url, id]);
       return send(res, 200, { ok: true });
     }
     const operaHide = route.match(/^\/api\/opera\/(\d+)\/hide$/);
