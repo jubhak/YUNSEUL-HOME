@@ -1,0 +1,10 @@
+{
+  "nginx_dir": "C:/Users/J/nginx",
+  "nginx_exe": "nginx.exe",
+  "nginx_port": 777,
+  "node_exe": "node",
+  "api_dir": "api",
+  "api_entry": "server.mjs",
+  "api_port": 7780,
+  "site_url": "http://127.0.0.1:777/"
+}

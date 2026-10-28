@@ -518,17 +518,65 @@ function buildProps(){
  const flm=(geo,mt,x,y,z,p)=>{const o=mk(geo,mt,x,y,z,p);o.castShadow=false;return o};
  const leafOf=(p,x,y,z,rz)=>{const l=flm(lfG,leaf,x,y,z,p);l.scale.set(1.5,.24,.62);l.rotation.z=rz};
  const around=(p,n,geo,mt,r,y,rz,sc)=>{for(let i=0;i<n;i++){const a=new T.Group();a.rotation.y=i*Math.PI*2/n+(rnd()-.5)*.08;const m=flm(geo,mt,r,y,0,a);if(rz)m.rotation.z=rz;if(sc)m.scale.set(sc[0],sc[1],sc[2]);p.add(a)}};
- const roseShape=(()=>{const s=new T.Shape();s.moveTo(0,-.62);s.bezierCurveTo(-.48,-.35,-.62,.18,-.22,.52);s.bezierCurveTo(-.08,.72,0,.78,0,.78);s.bezierCurveTo(0,.78,.08,.72,.22,.52);s.bezierCurveTo(.62,.18,.48,-.35,0,-.62);return new T.ShapeGeometry(s,7)})();
+ // Small garden plants: shared smooth geometry, in world units (trees are 1.3+ tall).
+ const rosePetalMaterial=M(0xffffff,{vertexColors:true,side:T.DoubleSide,roughness:.36});
+ const roseGreen=M(0x447d32,{side:T.DoubleSide,roughness:.72});
+ const roseVein=M(0x80a64c,{roughness:.7});
+ const roseStemCurve=new T.CatmullRomCurve3([new T.Vector3(-.012,0,0),new T.Vector3(.008,.16,0),new T.Vector3(-.006,.29,.002),new T.Vector3(0,.415,0)]);
+ const roseStemGeometry=new T.TubeGeometry(roseStemCurve,12,.007,6,false);
+ const roseLeafGeometry=(()=>{
+  const v=[],ix=[],steps=12;
+  for(let i=0;i<=steps;i++){
+   const t=i/steps,x=.105*t,y=.014*Math.sin(Math.PI*t),w=.029*Math.sin(Math.PI*t)*(i%2?.85:1);
+   v.push(x,y-.006,-w,x,y+.004,0,x,y-.006,w);
+   if(i<steps)for(let j=0;j<2;j++){const a=i*3+j;ix.push(a,a+3,a+1,a+1,a+3,a+4)}
+  }
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(v,3));geo.setIndex(ix);geo.computeVertexNormals();return geo;
+ })();
+ const roseVeinGeometry=new T.TubeGeometry(new T.QuadraticBezierCurve3(new T.Vector3(0,.005,0),new T.Vector3(.052,.03,0),new T.Vector3(.105,.005,0)),8,.0012,3,false);
+ const roseHeads={};
+ function roseHead(tone){
+  if(roseHeads[tone])return roseHeads[tone];
+  const v=[],colors=[],ix=[],baseColor=new T.Color(tone),nu=12,nv=8;
+  // Overlapping cupped petals. Each ring closes toward the spiral bud; no flat white rim.
+  const rings=[{n:7,r:.128,h:.13,y:.373,arc:1.52,spin:0},{n:6,r:.097,h:.15,y:.388,arc:1.72,spin:.45},{n:5,r:.065,h:.16,y:.413,arc:1.93,spin:.12},{n:3,r:.027,h:.14,y:.451,arc:2.42,spin:.8},{n:2,r:.012,h:.10,y:.493,arc:3.2,spin:1.9}];
+  rings.forEach((ring,layer)=>{
+   for(let k=0;k<ring.n;k++){
+    const offset=v.length/3,angle=k*Math.PI*2/ring.n+ring.spin;
+    for(let j=0;j<=nv;j++)for(let i=0;i<=nu;i++){
+     const t=j/nv,u=i/nu*2-1;
+     const a=angle+u*ring.arc*.5+.29*t+(layer>=3?.68*t:0);
+     const r=.006+(ring.r-.006)*Math.sin(t*Math.PI*.5);
+     // Raised center, gently drooping edges and an outward-rolled lip.
+     const lip=Math.pow(Math.max(0,(t-.78)/.22),2);
+     const radial=r*(1-.14*u*u*t)+lip*(layer<3?.011:.001)*(1-u*u);
+     const y=ring.y+ring.h*t-.026*u*u*Math.sin(t*Math.PI*.5)-lip*.01+.005*Math.sin(k*2.4+layer)*t;
+     v.push(Math.cos(a)*radial,y,Math.sin(a)*radial);
+     const color=baseColor.clone().multiplyScalar(.76+layer*.025+t*.26);
+     color.lerp(new T.Color(0xff93a5),.055*lip);
+     colors.push(color.r,color.g,color.b);
+     if(j<nv&&i<nu){const q=offset+j*(nu+1)+i;ix.push(q,q+1,q+nu+1,q+1,q+nu+2,q+nu+1)}
+    }
+   }
+  });
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(v,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.setIndex(ix);geo.computeVertexNormals();
+  return roseHeads[tone]=geo;
+ }
  function daisy(g){const c=petal(pick([0xfff7fb,0xff9ec8,0xffd0ea,0xd4c2ff,0xfff0a8]));flm(stG,stem,0,.2,0,g);leafOf(g,.09,.12,0,-.75);around(g,8,peG,c,.16,.48,0,[1.25,.38,.72]);flm(bdG,petal(0xffe14a),0,.52,.02,g)}
  function tulip(g){const c=petal(pick([0xff4d6d,0xff8ec8,0xffe14a,0xb388ff,0xff7a3c]));flm(stG,stem,0,.18,0,g);leafOf(g,.1,.12,0,-.95);leafOf(g,-.08,.1,.02,.8);around(g,5,cuG,c,.045,.46,-.42,null)}
  function rose(g){
-  const tone=pick([0xe23b5a,0xff4f7a,0xd62856,0xc73b6e]),rm=c=>{const m=petal(c).clone();m.side=T.DoubleSide;m.roughness=.55;return m};
-  const outer=rm(tone),mid=rm(tone),inner=rm(0x8f1f3d),edge=rm(0xffb7c9);
-  flm(stG,stem,0,.2,0,g);leafOf(g,.11,.14,0,-.7);leafOf(g,-.09,.12,.02,.85);
-  // Layered teardrop petals spiral into a rose bud — not a ball of spheres.
-  const layer=(count,y,tilt,sx,sy,mat,spin=0)=>{for(let i=0;i<count;i++){const a=new T.Group();a.rotation.y=spin+i*Math.PI*2/count+(rnd()-.5)*.08;const m=flm(roseShape,mat,0,y,.01,a);m.rotation.x=tilt;m.scale.set(sx,sy,1);g.add(a)}};
-  layer(7,.34,-1.12,1.05,.95,outer);layer(6,.40,-.92,.88,.86,edge,.45);layer(5,.46,-.68,.7,.72,mid,.2);layer(4,.51,-.42,.52,.58,inner,.55);
-  flm(bdG,inner,0,.56,0,g).scale.set(1.15,1.05,1.15);flm(bdG,edge,0,.58,.01,g).scale.set(.55,.5,.55);
+  const tone=pick([0xf02f55,0xe83d65,0xd72b50,0xf45178]);
+  flm(roseStemGeometry,roseGreen,0,0,0,g);
+  [[1,.17,.25],[-1,.235,-.45]].forEach(([side,y,turn])=>{
+   const sprig=new T.Group();sprig.position.set(.002,y,0);sprig.rotation.set(0,turn,side>0?.46:Math.PI-.46);g.add(sprig);
+   flm(roseLeafGeometry,roseGreen,0,0,0,sprig);flm(roseVeinGeometry,roseVein,0,0,0,sprig);
+  });
+  for(let i=0;i<5;i++){
+   const sepal=new T.Group();sepal.position.y=.385;sepal.rotation.y=i*Math.PI*2/5;
+   const m=flm(roseLeafGeometry,roseGreen,0,0,0,sepal);m.scale.set(.62,.7,.36);m.rotation.z=-.28;g.add(sepal);
+  }
+  flm(roseHead(tone),rosePetalMaterial,0,0,0,g);
+  g.userData.floraKind='rose';
  }
  function poppy(g){const c=petal(pick([0xff5d6c,0xff8a3d,0xfff1a8,0xff4d6d]));flm(stG,stem,0,.14,0,g);leafOf(g,.08,.1,0,-.55);around(g,4,peG,c,.13,.34,0,[1.75,.3,1.2]);flm(bdG,petal(0x2a1a14),0,.36,.03,g)}
  function lily(g){const c=petal(pick([0xfff7fb,0xffb3d9,0xff9a56,0xffe08a]));flm(stT,stem,0,.28,0,g);leafOf(g,.12,.16,0,-.85);around(g,6,cuG,c,.07,.62,-1.05,null);for(let i=0;i<3;i++){const a=new T.Group();a.rotation.y=i*2.094;flm(bdG,petal(0xffe14a),.04,.66,0,a);g.add(a)}}
@@ -547,7 +595,15 @@ function buildProps(){
   for(const h of homes)if(h.angleTo(n)<.18)return false;
   for(const c of (window.clearN||[]))if(c.n.angleTo(n)<(c.pad||.7))return false;
   return true}
- function plant(n,build,sc){const g=new T.Group(),inner=new T.Group();g.userData.walkThrough=true;g.add(inner);build(inner);g.scale.setScalar(sc);place(g,n,rnd()*6.28);used.push(n);flowerN.push(n);flowerSway.push({g:inner,ph:rnd()*6.28,a:.03+rnd()*.04})}
+ function plant(n,build,sc){
+  const g=new T.Group(),inner=new T.Group();g.userData.walkThrough=true;g.add(inner);build(inner);
+  // Apply to EVERY placement route, including scattered roses in the southern hemisphere.
+  const isGrass=build===grass,isRose=build===rose;
+  const size=isGrass?T.MathUtils.clamp(sc*.72,.60,.92):isRose?T.MathUtils.clamp(sc*.65,.55,.78):T.MathUtils.clamp(sc*.70,.58,1.0);
+  g.scale.setScalar(size);place(g,n,rnd()*6.28);g.position.addScaledVector(n,.032);
+  g.userData.floraKind=isGrass?'grass':isRose?'rose':'flower';
+  used.push(n);flowerN.push(n);flowerSway.push({g:inner,ph:rnd()*6.28,a:isGrass?.025:.03+rnd()*.025});
+ }
  function scatter(center,minA,maxA,cnt,tries,gap,sc0,sc1,tall,even){
   const up=center.clone().normalize(),t=new T.Vector3().crossVectors(up,Math.abs(up.y)>.85?new T.Vector3(1,0,0):new T.Vector3(0,1,0)).normalize(),b=new T.Vector3().crossVectors(up,t);
   for(let i=0,k=0;i<cnt&&k<tries;k++){const ang=even?Math.acos(Math.cos(minA)-rnd()*(Math.cos(minA)-Math.cos(maxA))):minA+rnd()*(maxA-minA),az=rnd()*6.28,n=new T.Vector3().copy(up).multiplyScalar(Math.cos(ang)).addScaledVector(t,Math.sin(ang)*Math.cos(az)).addScaledVector(b,Math.sin(ang)*Math.sin(az)).normalize();
@@ -571,14 +627,26 @@ function buildProps(){
   if(n.y<-.15||!canPlant(n,.55))continue;
   plant(n,i%8===0?sunflower:kinds[i%kinds.length],.95+rnd()*.7);i++}
  // Sparse planet-wide grass and rose patches, including previously empty southern land.
- function grass(g){
-  // Flat ribbon blades (not awl-like cones), leaning outward from a small tuft.
-  const mt=petal(pick([0x64af70,0x81c37b,0x9bcd82,0x4f9a5c]));
-  for(let i=0;i<10;i++){
-   const h=.18+rnd()*.16,w=.012+rnd()*.01,blade=new T.BoxGeometry(w,h,.0035),x=(rnd()-.5)*.2,z=(rnd()-.5)*.2;
-   const m=flm(blade,mt,x,h*.48,z,g);m.rotation.y=rnd()*Math.PI;m.rotation.z=(rnd()-.5)*.7+Math.sign(x||.01)*.15;m.rotation.x=(rnd()-.5)*.35+Math.sign(z||.01)*.12;
+ const grassMaterial=M(0xffffff,{vertexColors:true,side:T.DoubleSide,roughness:.92});
+ const grassTufts=Array.from({length:5},()=>{
+  const v=[],colors=[],ix=[],root=new T.Color(0x49783d),tip=new T.Color(0x89ad5b);
+  // One shared mesh per tuft: narrow tapered blades, not boxes or needle-like cones.
+  for(let i=0;i<7;i++){
+   const h=.075+rnd()*.085,w=.006+rnd()*.004,lean=.025+rnd()*.045,az=rnd()*Math.PI*2;
+   const x=(rnd()-.5)*.07,z=(rnd()-.5)*.07,offset=v.length/3,steps=5;
+   for(let j=0;j<=steps;j++){
+    const t=j/steps,width=w*Math.pow(1-t,.85),bend=lean*t*t;
+    const color=root.clone().lerp(tip,t*.85);
+    for(const side of [-1,1]){
+     v.push(x+Math.cos(az)*bend+Math.sin(az)*width*side,h*t,z+Math.sin(az)*bend-Math.cos(az)*width*side);
+     colors.push(color.r,color.g,color.b);
+    }
+    if(j<steps){const q=offset+j*2;ix.push(q,q+2,q+1,q+1,q+2,q+3)}
+   }
   }
- }
+  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(v,3));geo.setAttribute('color',new T.Float32BufferAttribute(colors,3));geo.setIndex(ix);geo.computeVertexNormals();return geo;
+ });
+ function grass(g){flm(pick(grassTufts),grassMaterial,0,0,0,g);g.userData.floraKind='grass'}
  for(let i=0,k=0;i<100&&k<6000;k++){
   const y=1-2*rnd(),az=rnd()*Math.PI*2,rr=Math.sqrt(1-y*y),n=new T.Vector3(rr*Math.cos(az),y,rr*Math.sin(az));
   if(!canPlant(n,.095))continue;

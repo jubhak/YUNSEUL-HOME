@@ -1,2 +1,8 @@
-.env
+﻿.env
 api/node_modules/
+__pycache__/
+build/
+dist/
+*.pyc
+*.exe
+YUNSEUL-HOME-update.patch
