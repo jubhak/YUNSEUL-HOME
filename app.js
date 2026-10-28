@@ -114,8 +114,8 @@ const PAGES={
  theater:()=>theaterPanel(),
  opera:()=>operaPanel(),
  cs:()=>`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')||'<p class="hint2">접수된 상담이 없어요</p>'}`};
-function theaterPanel(){return `${isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목"><input id="thu" placeholder="유튜브 주소"><button class="btn" data-act="theater-add">등록</button></div>`:'<p class="hint2">극장 건물에서도 영상을 볼 수 있어요</p>'}<div class="media-list">${THEATER.map(x=>`<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('theater',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`}
-function operaPanel(){return `${operaOn?'<div class="card"><b>♪ 오페라하우스 음악 재생 중</b><p>밖에서도 노래가 이어져요. 여기서 끄면 바다 소리가 돌아와요.</p><button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button></div>':''}${isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:'<p class="hint2">오페라하우스에서 노래를 골라 들을 수 있어요</p>'}<div class="media-list">${OPERA.map(x=>`<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('opera',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`}
+function theaterPanel(){const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:`<div class="card fm" style="text-align:center"><p class="hint2" style="margin-bottom:8px">극장에 영상을 등록하려면 관리자 로그인이 필요해요</p><button type="button" class="btn gh" data-act="adm-open">🔑 관리자 로그인</button></div>`;return `${form}<div class="media-list">${THEATER.map(x=>`<div class="media-item"><button type="button" class="media-go" data-yt="${x.id}"><span class="mi-ico">▶️</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('theater',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 영상이 없어요</p>'}</div>`}
+function operaPanel(){const form=isAdmin?`<div class="card fm"><b>🎭 노래 등록 (관리자)</b><input id="opt" placeholder="노래 제목"><input id="opu" placeholder="유튜브 또는 음원 주소"><button class="btn" data-act="opera-add">등록</button></div>`:`<div class="card fm" style="text-align:center"><p class="hint2" style="margin-bottom:8px">노래를 등록하려면 관리자 로그인이 필요해요</p><button type="button" class="btn gh" data-act="adm-open">🔑 관리자 로그인</button></div>`;return `${operaOn?'<div class="card"><b>♪ 오페라하우스 음악 재생 중</b><p>밖에서도 노래가 이어져요. 여기서 끄면 바다 소리가 돌아와요.</p><button class="btn" data-opera-stop>노래 끄고 바다 소리 듣기</button></div>':''}${form}<div class="media-list">${OPERA.map(x=>`<div class="media-item"><button type="button" class="media-go" data-song="${x.id}"><span class="mi-ico">🎵</span><span class="mi-body"><b>${esc(x.title)}</b><small>${esc(x.date)}</small></span></button>${delBtn('opera',x.id)}</div>`).join('')||'<p class="hint2">아직 등록된 노래가 없어요</p>'}</div>`}
 function openTheater(){$('#mt').textContent='🎬 극장';$('#mb').innerHTML=theaterPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function openOpera(){$('#mt').textContent='🎭 오페라하우스';$('#mb').innerHTML=operaPanel();$('#mb').scrollTop=0;modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function syncAdmin(){const b=$('#adm');b.classList.toggle('on',isAdmin);b.title=isAdmin?'로그아웃':'관리자';b.setAttribute('aria-label',isAdmin?'관리자 로그아웃':'관리자')}
@@ -142,7 +142,7 @@ $('#admp').addEventListener('keydown',e=>{if(e.key==='Enter')tryAdmin()});
 $('#adm').onclick=()=>{if(isAdmin){adminToken='';sessionStorage.removeItem('jng_admin');isAdmin=false;editKind='';editId=0;consultNew=0;consults=[];if(tabNow==='cs')tabNow='gb';syncAdmin();toast('로그아웃했어요');if(dockOn)dockRender(true);return}$('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus()};
 async function showConsults(){tabNow='cs';pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;try{const j=await api('/api/consult');consults=j.items.map(x=>Object.assign({},x,{fresh:x.seen==='N'}));consultNew=j.unread;dockRender();if(j.unread){await api('/api/consult/seen',{method:'POST',body:'{}'});consultNew=0;const b=document.querySelector('[data-tab="cs"] .tbad');if(b)b.remove()}}catch(e){toast(e.message)}}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(b.dataset.tab==='cs'){showConsults();return}tabNow=b.dataset.tab;pfOpen=0;boardOpen=0;shopOpen=0;editKind='';editId=0;dockRender()});
-$('#db').addEventListener('click',async e=>{const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=id=>((document.getElementById(id)||{}).value||'').trim();
+async function handleActionClick(e){const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=id=>((document.getElementById(id)||{}).value||'').trim();
  try{
   if(a==='post'){const body=await wysHtml('board');await api('/api/board',{method:'POST',body:JSON.stringify({title:v('bt'),subtitle:v('bs'),body})});toast('등록했어요');await loadHome()}
   else if(a==='pf'){const body=await wysHtml('pf');await api('/api/portfolio',{method:'POST',body:JSON.stringify({title:v('pt'),subtitle:v('ps'),body})});toast('포트폴리오를 등록했어요');await loadHome()}
@@ -154,10 +154,31 @@ $('#db').addEventListener('click',async e=>{const t=e.target.closest('[data-act]
   else if(a==='guest'){const body=await wysHtml('guest');await api('/api/guestbook',{method:'POST',body:JSON.stringify({name:v('gn'),body})});toast('방명록을 남겼어요');await loadHome()}
   else if(a==='goods-save'){const body={name:v('gn'),price:v('gp'),salePrice:v('gs'),saleFrom:v('gf'),saleTo:v('gt'),link:v('gl'),images:goodsPics.slice()};await api(t.dataset.i?'/api/goods/'+t.dataset.i:'/api/goods',{method:'POST',body:JSON.stringify(body)});const edited=!!t.dataset.i;goodsEdit=0;goodsPics=[];toast(edited?'상품을 수정했어요':'상품을 등록했어요');await loadHome()}
   else if(a==='consult'){await api('/api/consult',{method:'POST',body:JSON.stringify({goodsId:+t.dataset.i,contact:v('cc'),name:v('cn'),job:v('cj')})});toast('구매 상담을 접수했어요');['cc','cn','cj'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const box=document.getElementById('csbox');if(box)box.hidden=true}
-  else if(a==='theater-add'){await api('/api/theater',{method:'POST',body:JSON.stringify({title:v('tht'),url:v('thu')})});toast('영상을 등록했어요');await loadHome()}
-  else if(a==='opera-add'){await api('/api/opera',{method:'POST',body:JSON.stringify({title:v('opt'),url:v('opu')})});toast('노래를 등록했어요');await loadHome()}
+  else if(a==='theater-add'){
+    const title=v('tht'),url=v('thu');
+    if(!url){toast('유튜브 주소를 입력해 주세요');return}
+    await api('/api/theater',{method:'POST',body:JSON.stringify({title:title||'유튜브 영상',url})});
+    toast('영상을 등록했어요');
+    const ti=document.getElementById('tht'),ui=document.getElementById('thu');if(ti)ti.value='';if(ui)ui.value='';
+    await loadHome();
+    if(modalOpen&&($('#mt').textContent||'').includes('극장'))$('#mb').innerHTML=theaterPanel();
+  }
+  else if(a==='opera-add'){
+    const title=v('opt'),url=v('opu');
+    if(!url){toast('음원/유튜브 주소를 입력해 주세요');return}
+    await api('/api/opera',{method:'POST',body:JSON.stringify({title:title||'노래',url})});
+    toast('노래를 등록했어요');
+    const ti=document.getElementById('opt'),ui=document.getElementById('opu');if(ti)ti.value='';if(ui)ui.value='';
+    await loadHome();
+    if(modalOpen&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel();
+  }
+  else if(a==='adm-open'){
+    $('#admp').value='';$('#admlock').classList.add('on');$('#admp').focus();
+  }
  }catch(err){toast(err.message)}
-});
+}
+$('#db').addEventListener('click',handleActionClick);
+$('#mb').addEventListener('click',handleActionClick);
 
 /* ===== 지갑 · 포트폴리오 클릭 ===== */
 const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())};
