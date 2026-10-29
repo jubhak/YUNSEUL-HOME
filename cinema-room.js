@@ -5,8 +5,9 @@
 (function(root){
  'use strict';
  const PHOTO={width:1024,height:576,corners:[[185,75],[799,89],[798,349],[187,352]]};
- // Match the photographed wide screen. YouTube letterboxes 16:9 content itself.
- const PLAYER={width:1280,height:566};
+ // Keep the embedded player 16:9 so YouTube does not add pillarboxes.
+ // The homography stretches this rectangle to the photographed quadrilateral.
+ const PLAYER={width:1280,height:720};
  const scriptURL=document.currentScript&&document.currentScript.src;
  const photoURL=new URL('cinema-background.png',scriptURL||document.baseURI).href;
 
@@ -35,6 +36,8 @@
  function mount(host,screen){
   let disposed=false,failed=false;
   const layer=host.closest('#ytlayer');
+  const iframe=screen.querySelector('iframe');
+  if(!iframe)throw new Error('Cinema iframe missing');
   const photo=new Image();photo.className='cinema-photo';photo.alt='';photo.draggable=false;
   photo.decoding='async';
   function resize(){
@@ -45,11 +48,11 @@
    const x=(w-PHOTO.width*scale)/2,y=(h-PHOTO.height*scale)/2;
    Object.assign(photo.style,{left:x+'px',top:y+'px',width:PHOTO.width*scale+'px',height:PHOTO.height*scale+'px'});
    const corners=PHOTO.corners.map(([u,v])=>[x+u*scale,y+v*scale]);
-   Object.assign(screen.style,{left:'0px',top:'0px',width:PLAYER.width+'px',height:PLAYER.height+'px',transformOrigin:'0 0',transform:projection(corners)});
+   Object.assign(iframe.style,{left:'0px',top:'0px',width:PLAYER.width+'px',height:PLAYER.height+'px',transformOrigin:'0 0',transform:projection(corners)});
   }
   function fallback(){
    if(disposed)return;
-   failed=true;layer.classList.add('cinema-fallback');screen.removeAttribute('style');photo.hidden=true;
+   failed=true;layer.classList.add('cinema-fallback');screen.removeAttribute('style');iframe.removeAttribute('style');photo.hidden=true;
   }
   photo.onload=()=>{if(!disposed){failed=false;photo.hidden=false;layer.classList.remove('cinema-fallback');resize()}};
   photo.onerror=fallback;
@@ -65,6 +68,7 @@
    root.removeEventListener('resize',resize);root.removeEventListener('orientationchange',resize);
    document.removeEventListener('fullscreenchange',resize);
    photo.onload=photo.onerror=null;photo.remove();
+   iframe.removeAttribute('style');screen.removeAttribute('style');
   }};
  }
  root.YunseulCinema={mount};
