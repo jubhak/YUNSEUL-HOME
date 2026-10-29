@@ -121,7 +121,7 @@ const PAGES={
  cs:()=>`${consults.length?`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')}`:emptyBox('📩','등록된 내용이 없습니다.','쇼핑센터에서 구매 상담 접수가 들어오면 이곳에 모여요.')}`};
 function theaterPanel(){
  const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:'';
- return `<div class="theater-intro"><b>🎬 작은 지구 극장</b>영상을 선택하면 대형 스크린이 있는 3D 상영관으로 입장해요.<br>다른 영상은 극장을 나와 이 플레이리스트에서 선택해 주세요.</div>${form}${THEATER.length?`<div class="media-list">${THEATER.map(x=>{
+ return `<div class="theater-intro"><b>🎬 작은 지구 극장</b>영상을 선택하면 사진 속 스크린에서 재생되는 실사 상영관으로 입장해요.<br>다른 영상은 극장을 나와 이 플레이리스트에서 선택해 주세요.</div>${form}${THEATER.length?`<div class="media-list">${THEATER.map(x=>{
   const editing=isAdmin&&editKind==='theater'&&editId===x.id;
   if(editing){
    return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 영상 수정</b><input id="tht2_${x.id}" value="${esc(x.title)}" placeholder="영상 제목"><input id="thu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="theater-save" data-i="${x.id}">저장</button></div></div>`;
@@ -978,7 +978,7 @@ function openYtLayer(item){
  $('#cinemaHint').textContent='다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.';
  $('#ytfs').textContent='⛶ 전체 화면';layer.hidden=false;modalOpen=true;
  try{cinemaRoom=YunseulCinema.mount($('#cinemaRoom'),$('#cinemaScreen'));}
- catch(e){layer.classList.add('cinema-fallback');console.warn('Cinema WebGL fallback',e)}
+ catch(e){layer.classList.add('cinema-fallback');console.warn('Cinema photo fallback',e)}
  const session=cinemaSession;
  const kick=()=>{if(session===cinemaSession&&theaterOn&&frame.contentWindow){
   const target='https://www.youtube-nocookie.com';
@@ -987,7 +987,7 @@ function openYtLayer(item){
  }};
  frame.onload=kick;
  // Load synchronously in the original user gesture for the best autoplay support.
- frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+ frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
  cinemaTimers=[400,1200,2500].map(ms=>setTimeout(kick,ms));
  $('#ytx').focus();cinemaFullscreen();
 }
