@@ -42,7 +42,7 @@
   photo.decoding='async';
   function resize(){
    if(disposed||failed)return;
-   if(layer&&layer.classList.contains('cinema-pc-full'))return;
+
    const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;
    // Contain both photo and projection in the same rectangle. No cropping of seats.
    const scale=Math.min(w/PHOTO.width,h/PHOTO.height);
