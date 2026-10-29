@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>지누기 홈페이지</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=cinema-clean-5">
+<link rel="stylesheet" href="style.css?v=cinema-fs-6">
 </head><body>
 <div id="block" hidden></div>
 <div id="app" hidden>
@@ -27,7 +27,7 @@
   <div class="cinema-vignette" aria-hidden="true"></div>
   <header class="cinema-bar">
     <div class="cinema-heading"><span class="cinema-brand">YUNSEUL · 작은 지구 극장</span><h2 id="ytt"></h2></div>
-    <div class="ytacts"><button type="button" class="cinema-btn" id="ytfs">⛶ 전체 화면</button><button type="button" class="cinema-btn cinema-exit" id="ytx">↩ 극장 나가기</button></div>
+    <div class="ytacts"><button type="button" class="cinema-btn cinema-fs-btn" id="ytfs" title="전체화면 (PC 화면 꽉 채우기)" aria-label="전체화면"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M21 3l-6 6M9 3H3v6M3 3l6 6M9 21H3v-6M3 21l6-6M15 21h6v-6M21 21l-6-6"/></svg></button><div class="cinema-vol"><button type="button" class="cinema-vol-btn" id="ytSnd" title="소리 켜기/끄기" aria-label="소리 켜기/끄기"></button><input type="range" id="ytVol" min="0" max="100" value="20" aria-label="극장 볼륨"></div><button type="button" class="cinema-btn cinema-exit" id="ytx">↩ 극장 나가기</button></div>
   </header>
   <div class="ytframe" id="cinemaScreen"><iframe id="ytframe" title="극장 대형 스크린 · 유튜브 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
   <p id="cinemaHint">다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.</p>
@@ -38,6 +38,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="culture-landmarks.js?v=cinema-sign-1"></script>
 <script src="sakura.js?v=branch-blossom-1"></script>
-<script src="cinema-room.js?v=cinema-clean-5"></script>
-<script src="app.js?v=cinema-clean-5"></script>
+<script src="cinema-room.js?v=cinema-fs-6"></script>
+<script src="app.js?v=cinema-fs-6"></script>
 </body></html>

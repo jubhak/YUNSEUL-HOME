@@ -866,10 +866,34 @@ function syncOperaVol(){
   if(muted||vol===0){if(operaYt.mute)operaYt.mute()}else if(operaYt.unMute)operaYt.unMute();
  }catch(e){}
 }
-const applyVol=()=>{volIcon();const bgMuted=operaOn||theaterOn;if(ac){mast.gain.setTargetAtTime(bgMuted?0:mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(theaterOn?0:sg(),ac.currentTime,.1);ac.resume()}syncOperaVol()};
+function syncCinemaVol(){
+ const snd=$('#ytSnd'),slider=$('#ytVol');
+ if(!snd||!slider)return;
+ slider.value=Math.round(vol*100);
+ const lv=muted||vol===0?0:vol<.34?1:vol<.67?2:3;
+ snd.innerHTML=SP+(lv===0?'<path d="M16 9.5l5 5M21 9.5l-5 5"/>':lv===1?'<path d="M15.5 10.5a2.5 2.5 0 0 1 0 3"/>':lv===2?'<path d="M15.5 9a4.5 4.5 0 0 1 0 6"/>':'<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>')+'</svg>';
+}
+const applyVol=()=>{
+ volIcon();syncCinemaVol();const bgMuted=operaOn||theaterOn;
+ if(ac){mast.gain.setTargetAtTime(bgMuted?0:mg(),ac.currentTime,.1);sfx.gain.setTargetAtTime(theaterOn?0:sg(),ac.currentTime,.1);ac.resume()}
+ syncOperaVol();
+ if(theaterOn){
+  const frame=$('#ytframe');
+  if(frame&&frame.contentWindow)try{
+   const target='https://www.youtube-nocookie.com';
+   const v=muted?0:Math.round(vol*100);
+   frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'setVolume',args:[v]}),target);
+   if(muted||vol===0)frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'mute',args:[]}),target);
+   else frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'unMute',args:[]}),target);
+  }catch(e){}
+ }
+};
 $('#snd').onclick=()=>{if(vol===0){vol=.2;$('#vol').value=20;muted=false}else muted=!muted;applyVol()};
 $('#vol').addEventListener('input',e=>{vol=e.target.value/100;muted=false;applyVol()});
-volIcon();
+const ytSnd=$('#ytSnd'),ytVol=$('#ytVol');
+if(ytSnd)ytSnd.onclick=()=>{if(vol===0){vol=.2;$('#vol').value=20;muted=false}else muted=!muted;applyVol()};
+if(ytVol)ytVol.addEventListener('input',e=>{vol=e.target.value/100;$('#vol').value=e.target.value;muted=false;applyVol()});
+volIcon();syncCinemaVol();
 function refreshOperaPanel(){if(modalOpen&&!dockOn&&($('#mt').textContent||'').includes('오페라'))$('#mb').innerHTML=operaPanel();if(dockOn&&tabNow==='opera')dockRender(true)}
 function stopOpera(){
  if(operaAudio){try{operaAudio.pause();operaAudio.src=''}catch(e){}operaAudio=null}
@@ -945,7 +969,35 @@ function playOperaTrack(item){
  operaAudio.play().then(()=>toast('♪ '+item.title)).catch(()=>{stopOpera();toast('노래를 재생하지 못했어요')});
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-opera-stop]')){stopOpera();toast('바다 소리가 돌아왔어요')}});
-let cinemaRoom=null,cinemaTimers=[],cinemaReturn=null,cinemaInert=[],cinemaSession=0,cinemaOwnFullscreen=false;
+const FS_ICONS={
+ expand:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M21 3l-6 6M9 3H3v6M3 3l6 6M9 21H3v-6M3 21l6-6M15 21h6v-6M21 21l-6-6"/></svg>',
+ shrink:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M10 14l-6 6M20 14h-6v6M14 14l6 6M4 10h6V4M10 10L4 4M20 10h-6V4M14 10l6-6"/></svg>'
+};
+let cinemaRoom=null,cinemaTimers=[],cinemaReturn=null,cinemaInert=[],cinemaSession=0,cinemaOwnFullscreen=false,cinemaFullscreenMode=false;
+function updateFsIcon(isFull){
+ const btn=$('#ytfs');
+ if(btn){
+  btn.innerHTML=isFull?FS_ICONS.shrink:FS_ICONS.expand;
+  btn.title=isFull?'전체화면 종료 (극장 뷰)':'전체화면 (PC 화면 꽉 채우기)';
+  btn.setAttribute('aria-label',btn.title);
+ }
+}
+function togglePcFullscreen(force){
+ const layer=$('#ytlayer'),frame=$('#ytframe');
+ if(!theaterOn||layer.hidden)return;
+ cinemaFullscreenMode=(typeof force==='boolean')?force:!cinemaFullscreenMode;
+ if(cinemaFullscreenMode){
+  layer.classList.add('cinema-pc-full');
+  frame.removeAttribute('style');
+  updateFsIcon(true);
+  try{if(!document.fullscreenElement&&layer.requestFullscreen)layer.requestFullscreen().catch(()=>{})}catch(e){}
+ }else{
+  layer.classList.remove('cinema-pc-full');
+  updateFsIcon(false);
+  if(document.fullscreenElement===layer){try{document.exitFullscreen().catch(()=>{})}catch(e){}}
+  if(cinemaRoom&&cinemaRoom.resize)cinemaRoom.resize();
+ }
+}
 function cinemaFullscreen(){
  const layer=$('#ytlayer');
  if(layer.hidden||document.fullscreenElement)return;
@@ -976,7 +1028,7 @@ function openYtLayer(item){
  cinemaInert.forEach(({el})=>{el.inert=true});
  $('#ytt').textContent=item.title||'작은 지구 극장';
  $('#cinemaHint').textContent='다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.';
- $('#ytfs').textContent='⛶ 전체 화면';layer.hidden=false;modalOpen=true;
+ cinemaFullscreenMode=false;layer.classList.remove('cinema-pc-full');updateFsIcon(false);syncCinemaVol();layer.hidden=false;modalOpen=true;
  try{cinemaRoom=YunseulCinema.mount($('#cinemaRoom'),$('#cinemaScreen'));}
  catch(e){layer.classList.add('cinema-fallback');console.warn('Cinema photo fallback',e)}
  const session=cinemaSession;
@@ -987,9 +1039,9 @@ function openYtLayer(item){
  }};
  frame.onload=kick;
  // Load synchronously in the original user gesture for the best autoplay support.
- frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+ frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&fs=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
  cinemaTimers=[400,1200,2500].map(ms=>setTimeout(kick,ms));
- $('#ytx').focus();cinemaFullscreen();
+ $('#ytx').focus();
 }
 function closeYtLayer(){
  const layer=$('#ytlayer'),frame=$('#ytframe');if(!layer||layer.hidden)return;
@@ -998,7 +1050,7 @@ function closeYtLayer(){
  if(document.fullscreenElement===layer){try{document.exitFullscreen().catch(()=>{})}catch(e){}}
  cinemaOwnFullscreen=false;
  if(cinemaRoom){cinemaRoom.dispose();cinemaRoom=null}
- layer.classList.remove('cinema-fallback');$('#cinemaScreen').removeAttribute('style');layer.hidden=true;
+ cinemaFullscreenMode=false;layer.classList.remove('cinema-fallback','cinema-pc-full');updateFsIcon(false);$('#cinemaScreen').removeAttribute('style');layer.hidden=true;
  cinemaInert.forEach(({el,inert})=>{el.inert=inert});cinemaInert=[];
  modalOpen=dockOn||$('#modal').classList.contains('on');
  theaterOn=false;applyVol();
@@ -1009,14 +1061,18 @@ function closeYtLayer(){
  }
 }
 $('#ytx').onclick=closeYtLayer;
-$('#ytfs').onclick=cinemaFullscreen;
+$('#ytfs').onclick=()=>togglePcFullscreen();
 document.addEventListener('fullscreenchange',()=>{
  const current=document.fullscreenElement,layer=$('#ytlayer');
- if(current===layer){cinemaOwnFullscreen=true;$('#ytfs').textContent='⛶ 전체 화면 중'}
+ if(current===layer){cinemaOwnFullscreen=true}
+ else if(!current){
+  cinemaOwnFullscreen=false;
+  if(cinemaFullscreenMode){togglePcFullscreen(false)}
+ }
  else if(cinemaOwnFullscreen&&theaterOn&&!layer.contains(current)){closeYtLayer()}
 });
 $('#ytlayer').addEventListener('keydown',e=>{
- if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeYtLayer();return}
+ if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(cinemaFullscreenMode){togglePcFullscreen(false);return}closeYtLayer();return}
  if(e.key!=='Tab')return;
  const first=$('#ytfs'),last=$('#ytframe');
  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
