@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>지누기 홈페이지</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=cinema-projective-3">
+<link rel="stylesheet" href="style.css?v=cinema-expand-4">
 </head><body>
 <div id="block" hidden></div>
 <div id="app" hidden>
@@ -27,9 +27,9 @@
   <div class="cinema-vignette" aria-hidden="true"></div>
   <header class="cinema-bar">
     <div class="cinema-heading"><span class="cinema-brand">YUNSEUL · 작은 지구 극장</span><h2 id="ytt"></h2></div>
-    <div class="ytacts"><button type="button" class="cinema-btn" id="ytfs">⛶ 전체 화면</button><button type="button" class="cinema-btn cinema-exit" id="ytx">↩ 극장 나가기</button></div>
+    <div class="ytacts"><button type="button" class="cinema-btn cinema-expand-btn" id="ytExpand" title="극장 밖으로 동영상 화면 꽉 채우기"><svg class="c-ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span>극장 밖으로 꽉 채우기</span></button><button type="button" class="cinema-btn" id="ytfs">⛶ 전체 화면</button><button type="button" class="cinema-btn cinema-exit" id="ytx">↩ 극장 나가기</button></div>
   </header>
-  <div class="ytframe" id="cinemaScreen"><iframe id="ytframe" title="극장 대형 스크린 · 유튜브 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+  <div class="ytframe" id="cinemaScreen"><iframe id="ytframe" title="극장 대형 스크린 · 유튜브 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><button type="button" class="cinema-player-expand-btn" id="cinemaPlayerExpand" title="극장 밖으로 동영상 화면 꽉 채우기" aria-label="극장 밖으로 동영상 화면 꽉 채우기"><svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span class="cpeb-label">극장 밖으로 꽉 채우기</span></button></div>
   <p id="cinemaHint">다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.</p>
 </section>
 <div id="toast"></div>
@@ -38,6 +38,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="culture-landmarks.js?v=cinema-sign-1"></script>
 <script src="sakura.js?v=branch-blossom-1"></script>
-<script src="cinema-room.js?v=cinema-projective-3"></script>
-<script src="app.js?v=cinema-projective-3"></script>
+<script src="cinema-room.js?v=cinema-expand-4"></script>
+<script src="app.js?v=cinema-expand-4"></script>
 </body></html>

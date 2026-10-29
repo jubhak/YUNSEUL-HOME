@@ -42,6 +42,7 @@
   photo.decoding='async';
   function resize(){
    if(disposed||failed)return;
+   if(layer&&layer.classList.contains('cinema-expanded'))return;
    const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;
    // Contain both photo and projection in the same rectangle. No cropping of seats.
    const scale=Math.min(w/PHOTO.width,h/PHOTO.height);
@@ -49,10 +50,15 @@
    Object.assign(photo.style,{left:x+'px',top:y+'px',width:PHOTO.width*scale+'px',height:PHOTO.height*scale+'px'});
    const corners=PHOTO.corners.map(([u,v])=>[x+u*scale,y+v*scale]);
    Object.assign(iframe.style,{left:'0px',top:'0px',width:PLAYER.width+'px',height:PLAYER.height+'px',transformOrigin:'0 0',transform:projection(corners)});
+   const expandBtn=screen.querySelector('#cinemaPlayerExpand');
+   if(expandBtn&&!layer.classList.contains('cinema-expanded')){
+    expandBtn.style.left=(corners[1][0]-8)+'px';
+    expandBtn.style.top=(corners[1][1]+8)+'px';
+   }
   }
   function fallback(){
    if(disposed)return;
-   failed=true;layer.classList.add('cinema-fallback');screen.removeAttribute('style');iframe.removeAttribute('style');photo.hidden=true;
+   failed=true;layer.classList.add('cinema-fallback');screen.removeAttribute('style');iframe.removeAttribute('style');const eb=screen.querySelector('#cinemaPlayerExpand');if(eb)eb.removeAttribute('style');photo.hidden=true;
   }
   photo.onload=()=>{if(!disposed){failed=false;photo.hidden=false;layer.classList.remove('cinema-fallback');resize()}};
   photo.onerror=fallback;
@@ -68,7 +74,7 @@
    root.removeEventListener('resize',resize);root.removeEventListener('orientationchange',resize);
    document.removeEventListener('fullscreenchange',resize);
    photo.onload=photo.onerror=null;photo.remove();
-   iframe.removeAttribute('style');screen.removeAttribute('style');
+   iframe.removeAttribute('style');screen.removeAttribute('style');const eb=screen.querySelector('#cinemaPlayerExpand');if(eb)eb.removeAttribute('style');
   }};
  }
  root.YunseulCinema={mount};

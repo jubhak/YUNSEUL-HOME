@@ -945,7 +945,35 @@ function playOperaTrack(item){
  operaAudio.play().then(()=>toast('♪ '+item.title)).catch(()=>{stopOpera();toast('노래를 재생하지 못했어요')});
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-opera-stop]')){stopOpera();toast('바다 소리가 돌아왔어요')}});
-let cinemaRoom=null,cinemaTimers=[],cinemaReturn=null,cinemaInert=[],cinemaSession=0,cinemaOwnFullscreen=false;
+let cinemaRoom=null,cinemaTimers=[],cinemaReturn=null,cinemaInert=[],cinemaSession=0,cinemaOwnFullscreen=false,cinemaExpanded=false;
+const EXPAND_ICONS={
+ expand:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+ shrink:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>'
+};
+function updateExpandBtn(isExpanded){
+ const barBtn=$('#ytExpand'),playerBtn=$('#cinemaPlayerExpand');
+ const text=isExpanded?'극장 안으로':'극장 밖으로 꽉 채우기';
+ const icon=isExpanded?EXPAND_ICONS.shrink:EXPAND_ICONS.expand;
+ if(barBtn){barBtn.innerHTML=`${icon}<span>${text}</span>`;barBtn.title=isExpanded?'극장 상영관 뷰로 돌아가기':'극장 밖으로 동영상 화면 꽉 채우기'}
+ if(playerBtn){playerBtn.innerHTML=`${icon}<span class="cpeb-label">${text}</span>`;playerBtn.title=isExpanded?'극장 상영관 뷰로 돌아가기':'극장 밖으로 동영상 화면 꽉 채우기';playerBtn.setAttribute('aria-label',playerBtn.title)}
+}
+function toggleCinemaExpand(force){
+ const layer=$('#ytlayer'),frame=$('#ytframe');
+ if(!theaterOn||layer.hidden)return;
+ cinemaExpanded=(typeof force==='boolean')?force:!cinemaExpanded;
+ if(cinemaExpanded){
+  layer.classList.add('cinema-expanded');
+  frame.removeAttribute('style');
+  const playerBtn=$('#cinemaPlayerExpand');
+  if(playerBtn)playerBtn.removeAttribute('style');
+  updateExpandBtn(true);
+  try{if(!document.fullscreenElement&&layer.requestFullscreen)layer.requestFullscreen().catch(()=>{})}catch(e){}
+ }else{
+  layer.classList.remove('cinema-expanded');
+  updateExpandBtn(false);
+  if(cinemaRoom&&cinemaRoom.resize)cinemaRoom.resize();
+ }
+}
 function cinemaFullscreen(){
  const layer=$('#ytlayer');
  if(layer.hidden||document.fullscreenElement)return;
@@ -976,7 +1004,7 @@ function openYtLayer(item){
  cinemaInert.forEach(({el})=>{el.inert=true});
  $('#ytt').textContent=item.title||'작은 지구 극장';
  $('#cinemaHint').textContent='다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.';
- $('#ytfs').textContent='⛶ 전체 화면';layer.hidden=false;modalOpen=true;
+ cinemaExpanded=false;layer.classList.remove('cinema-expanded');updateExpandBtn(false);$('#ytfs').textContent='⛶ 전체 화면';layer.hidden=false;modalOpen=true;
  try{cinemaRoom=YunseulCinema.mount($('#cinemaRoom'),$('#cinemaScreen'));}
  catch(e){layer.classList.add('cinema-fallback');console.warn('Cinema photo fallback',e)}
  const session=cinemaSession;
@@ -987,7 +1015,7 @@ function openYtLayer(item){
  }};
  frame.onload=kick;
  // Load synchronously in the original user gesture for the best autoplay support.
- frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+ frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&fs=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
  cinemaTimers=[400,1200,2500].map(ms=>setTimeout(kick,ms));
  $('#ytx').focus();cinemaFullscreen();
 }
@@ -998,7 +1026,7 @@ function closeYtLayer(){
  if(document.fullscreenElement===layer){try{document.exitFullscreen().catch(()=>{})}catch(e){}}
  cinemaOwnFullscreen=false;
  if(cinemaRoom){cinemaRoom.dispose();cinemaRoom=null}
- layer.classList.remove('cinema-fallback');$('#cinemaScreen').removeAttribute('style');layer.hidden=true;
+ cinemaExpanded=false;layer.classList.remove('cinema-fallback','cinema-expanded');updateExpandBtn(false);$('#cinemaScreen').removeAttribute('style');const peb=$('#cinemaPlayerExpand');if(peb)peb.removeAttribute('style');layer.hidden=true;
  cinemaInert.forEach(({el,inert})=>{el.inert=inert});cinemaInert=[];
  modalOpen=dockOn||$('#modal').classList.contains('on');
  theaterOn=false;applyVol();
@@ -1010,15 +1038,22 @@ function closeYtLayer(){
 }
 $('#ytx').onclick=closeYtLayer;
 $('#ytfs').onclick=cinemaFullscreen;
+const yte=$('#ytExpand');if(yte)yte.onclick=()=>toggleCinemaExpand();
+const cpe=$('#cinemaPlayerExpand');if(cpe)cpe.onclick=()=>toggleCinemaExpand();
 document.addEventListener('fullscreenchange',()=>{
  const current=document.fullscreenElement,layer=$('#ytlayer');
  if(current===layer){cinemaOwnFullscreen=true;$('#ytfs').textContent='⛶ 전체 화면 중'}
+ else if(!current){
+  cinemaOwnFullscreen=false;
+  $('#ytfs').textContent='⛶ 전체 화면';
+  if(cinemaExpanded){toggleCinemaExpand(false)}
+ }
  else if(cinemaOwnFullscreen&&theaterOn&&!layer.contains(current)){closeYtLayer()}
 });
 $('#ytlayer').addEventListener('keydown',e=>{
- if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeYtLayer();return}
+ if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(cinemaExpanded){toggleCinemaExpand(false);return}closeYtLayer();return}
  if(e.key!=='Tab')return;
- const first=$('#ytfs'),last=$('#ytframe');
+ const first=$('#ytExpand')||$('#ytfs'),last=$('#ytframe');
  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 });
