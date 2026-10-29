@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>지누기 홈페이지</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=empty-box-1">
+<link rel="stylesheet" href="style.css?v=cinema-room-1">
 </head><body>
 <div id="block" hidden></div>
 <div id="app" hidden>
@@ -22,12 +22,22 @@
 <button id="act" hidden></button>
 <div id="joy"><i></i></div>
 <div id="modal"><div class="sheet" role="dialog" aria-modal="true"><div class="sh"><h2 id="mt"></h2><button class="ic" id="mc" aria-label="닫기">✕</button></div><div id="mb"></div></div></div>
-<div id="ytlayer" hidden><div class="ytbox" role="dialog" aria-modal="true" aria-label="동영상 재생"><div class="ytbar"><b id="ytt"></b><div class="ytacts"><button type="button" class="btn gh" id="ytfs" aria-label="전체보기">⛶ 전체보기</button><button type="button" class="ic" id="ytx" aria-label="닫기">✕</button></div></div><div class="ytframe"><iframe id="ytframe" title="유튜브 재생" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div></div></div>
+<section id="ytlayer" hidden role="dialog" aria-modal="true" aria-labelledby="ytt" aria-describedby="cinemaHint" tabindex="-1">
+  <div id="cinemaRoom" aria-hidden="true"></div>
+  <div class="cinema-vignette" aria-hidden="true"></div>
+  <header class="cinema-bar">
+    <div class="cinema-heading"><span class="cinema-brand">YUNSEUL · 작은 지구 극장</span><h2 id="ytt"></h2></div>
+    <div class="ytacts"><button type="button" class="cinema-btn" id="ytfs">⛶ 전체 화면</button><button type="button" class="cinema-btn cinema-exit" id="ytx">↩ 극장 나가기</button></div>
+  </header>
+  <div class="ytframe" id="cinemaScreen"><iframe id="ytframe" title="극장 대형 스크린 · 유튜브 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+  <p id="cinemaHint">다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.</p>
+</section>
 <div id="toast"></div>
 <div id="warn" role="alertdialog" aria-modal="true" aria-labelledby="wt"><div class="wbox"><div class="wem">✏️</div><b id="wt">작성 중인 글이 있어요</b><p>지금 닫으면 쓰던 내용이 사라져요.<br>그래도 닫을까요?</p><div class="wbt"><button class="btn gh" id="wkeep">계속 쓰기</button><button class="btn" id="wclose">그래도 닫기</button></div></div></div><div id="delask" role="alertdialog" aria-modal="true" aria-labelledby="delt"><div class="wbox"><div class="wem">🗑️</div><b id="delt">정말 지울까요?</b><p id="delp">삭제하면 이 글은 화면에서 보이지 않아요.</p><div class="wbt"><button class="btn gh" id="delno" type="button">취소</button><button class="btn" id="delok" type="button">삭제</button></div></div></div><div id="admlock" role="alertdialog" aria-modal="true"><div class="wbox"><div class="wem">🔑</div><b>관리자 비밀번호</b><input id="admp" type="password" autocomplete="current-password" aria-label="관리자 비밀번호"><div class="wbt"><button class="btn gh" id="admno">취소</button><button class="btn" id="admok">확인</button></div></div></div><div id="dock" role="dialog" aria-modal="true"><div class="dh"><div class="tabs" id="tabs"></div><button class="ic" id="adm" title="관리자" aria-label="관리자">🔑</button><button class="ic" id="dc" aria-label="닫기">✕</button></div><div id="db"></div></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="culture-landmarks.js?v=cinema-sign-1"></script>
 <script src="sakura.js?v=branch-blossom-1"></script>
-<script src="app.js?v=20261029-empty-state-nice"></script>
+<script src="cinema-room.js?v=cinema-room-1"></script>
+<script src="app.js?v=cinema-room-1"></script>
 </body></html>

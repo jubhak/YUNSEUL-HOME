@@ -10,16 +10,30 @@ button{font:inherit;color:inherit;cursor:pointer}
 .ic{width:44px;height:44px;padding:0;font-size:19px;display:grid;place-items:center}
 .volwrap{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:auto}
 .vol{display:flex;align-items:center;gap:6px;padding:0 16px 0 0;background:var(--bar);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:999px;box-shadow:0 4px 16px #0001}.vol .ic{background:none;border:0;box-shadow:none;backdrop-filter:none;width:34px;height:34px}.vol input{width:96px;accent-color:var(--acc);cursor:pointer;touch-action:none}
-#ytlayer{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:rgba(8,20,30,.72);backdrop-filter:blur(8px)}
+/* Full-viewport 3D cinema; the iframe is projected onto its physical screen. */
+#ytlayer{position:fixed;inset:0;z-index:100;background:#102c32;color:#fff0d8;overflow:hidden;isolation:isolate;touch-action:auto}
 #ytlayer[hidden]{display:none}
-.ytbox{width:min(920px,100%);background:var(--glass);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 30px 80px #0007}
-.ytbox.fs{position:fixed;inset:0;width:100%;height:100%;border-radius:0;max-width:none}
-.ytbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px 10px 18px;background:linear-gradient(135deg,var(--tint),transparent)}
-.ytbar b{font:700 18px var(--f1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ytacts{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.ytframe{position:relative;width:100%;padding-bottom:56.25%;background:#000}
-.ytbox.fs .ytframe{padding-bottom:0;height:calc(100% - 58px)}
-.ytframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#ytlayer:fullscreen{width:100%;height:100%;background:#102c32}
+#cinemaRoom{position:absolute;inset:0;pointer-events:none}
+#cinemaRoom canvas{display:block;width:100%;height:100%}
+.cinema-vignette{position:absolute;inset:0;pointer-events:none;background:linear-gradient(#081b24bb,transparent 23%,transparent 74%,#081b24cc);z-index:1}
+.cinema-bar{position:absolute;inset:0 0 auto;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:calc(env(safe-area-inset-top,0px) + 18px) calc(env(safe-area-inset-right,0px) + 24px) 14px calc(env(safe-area-inset-left,0px) + 24px)}
+.cinema-heading{min-width:0}.cinema-brand{color:#b5d8cb;font-size:11px;font-weight:800;letter-spacing:.14em}
+.cinema-heading h2{margin:5px 0 0;font-size:clamp(14px,2vw,21px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ytacts{display:flex;gap:8px;flex-shrink:0}
+.cinema-btn{border:1px solid #d8b58370;border-radius:999px;background:#14383ee8;color:#fff0d8;padding:10px 16px;font-size:13px;font-weight:700;min-height:44px}
+.cinema-btn:hover{background:#315858}.cinema-exit{background:#b5d8cb;color:#173a40;border-color:#b5d8cb}
+.cinema-btn:focus-visible,#ytlayer:focus-visible{outline:3px solid #ffcf7f;outline-offset:3px}
+#ytlayer .ytframe{position:absolute;z-index:2;background:#000;box-shadow:0 0 45px #b5e8ef25;aspect-ratio:16/9}
+#ytlayer .ytframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+#cinemaHint{position:absolute;z-index:3;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);left:16px;right:16px;text-align:center;color:#e2e9df;font-size:12px;line-height:1.6;margin:0;text-shadow:0 2px 8px #000}
+/* WebGL failure still leaves a usable, framed theater screen. */
+#ytlayer.cinema-fallback{background:radial-gradient(ellipse at 50% 45%,#335b5b,#102c32 70%)}
+#ytlayer.cinema-fallback .ytframe{width:min(83vw,106.66vh);height:auto;left:50%;top:50%;transform:translate(-50%,-50%);border:6px solid #d8b583;box-sizing:content-box}
+.theater-intro{padding:14px 16px;margin-bottom:14px;border:1px solid var(--line);border-radius:16px;background:var(--tint);line-height:1.7;font-size:13px}
+.theater-intro b{display:block;font-size:16px}
+@media(max-width:600px){.cinema-bar{padding:calc(env(safe-area-inset-top,0px) + 12px) 12px 10px;gap:8px;align-items:flex-start}.cinema-brand{font-size:9px;letter-spacing:.04em}.cinema-heading h2{max-width:40vw}.cinema-btn{padding:8px 10px;font-size:11px}.ytacts{gap:5px}#cinemaHint{font-size:11px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}}
+@media(max-height:450px){.cinema-bar{padding-top:calc(env(safe-area-inset-top,0px) + 6px);padding-bottom:4px}.cinema-brand{display:none}.cinema-heading h2{margin:0}.cinema-btn{min-height:36px;padding:6px 12px}#cinemaHint{font-size:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px)}}
 .media-list{display:flex;flex-direction:column;gap:8px}
 .media-item{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:6px 8px 6px 6px;transition:.18s}
 .media-item:hover{transform:translateY(-2px);box-shadow:0 10px 22px #0002}

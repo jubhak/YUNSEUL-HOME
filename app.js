@@ -121,7 +121,7 @@ const PAGES={
  cs:()=>`${consults.length?`<p class="hint2">구매 상담으로 접수된 내용이에요</p>${consults.map(consultCard).join('')}`:emptyBox('📩','등록된 내용이 없습니다.','쇼핑센터에서 구매 상담 접수가 들어오면 이곳에 모여요.')}`};
 function theaterPanel(){
  const form=isAdmin?`<div class="card fm"><b>🎬 유튜브 영상 등록 (관리자)</b><input id="tht" placeholder="영상 제목 (비워두면 자동)"><input id="thu" placeholder="유튜브 주소 (https://www.youtube.com/watch?v=...)"><button class="btn" data-act="theater-add">등록</button></div>`:'';
- return `${form}${THEATER.length?`<div class="media-list">${THEATER.map(x=>{
+ return `<div class="theater-intro"><b>🎬 작은 지구 극장</b>영상을 선택하면 대형 스크린이 있는 3D 상영관으로 입장해요.<br>다른 영상은 극장을 나와 이 플레이리스트에서 선택해 주세요.</div>${form}${THEATER.length?`<div class="media-list">${THEATER.map(x=>{
   const editing=isAdmin&&editKind==='theater'&&editId===x.id;
   if(editing){
    return `<div class="card fm" style="margin:.4rem 0"><b>✏️ 영상 수정</b><input id="tht2_${x.id}" value="${esc(x.title)}" placeholder="영상 제목"><input id="thu2_${x.id}" value="${esc(x.url)}" placeholder="유튜브 주소"><div class="row"><button type="button" class="btn gh" data-edit-cancel>취소</button><button class="btn" data-act="theater-save" data-i="${x.id}">저장</button></div></div>`;
@@ -894,15 +894,15 @@ addEventListener('message',e=>{
  if(typeof d==='string'){try{d=JSON.parse(d)}catch(err){return}}
  if(!d)return;
  const isEnded=(d.event==='onStateChange'&&d.info===0)||(d.event==='infoDelivery'&&d.info&&d.info.playerState===0);
- if(!isEnded)return;
- if(theaterOn&&!$('#ytlayer').hidden){
-  closeYtLayer();
-  toast('🎬 영상이 끝나 바다 소리가 돌아왔어요');
+ if(theaterOn&&e.source===$('#ytframe').contentWindow){
+  if(isEnded){
+   $('#cinemaHint').textContent='상영이 끝났어요. 극장 나가기를 눌러 다음 영상을 선택해 주세요.';
+   $('#ytx').focus();
+  }
+  if(d.event==='onError')$('#cinemaHint').textContent='이 영상은 재생할 수 없어요. 극장을 나가 다른 영상을 선택해 주세요.';
   return;
  }
- if(operaOn){
-  playNextOperaTrack();
- }
+ if(isEnded&&operaOn&&e.source===($('#operaYtFrame')||{}).contentWindow)playNextOperaTrack();
 });
 /* Must run synchronously inside the click handler — awaiting YouTube API breaks autoplay. */
 function playOperaIframe(id){
@@ -945,32 +945,83 @@ function playOperaTrack(item){
  operaAudio.play().then(()=>toast('♪ '+item.title)).catch(()=>{stopOpera();toast('노래를 재생하지 못했어요')});
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-opera-stop]')){stopOpera();toast('바다 소리가 돌아왔어요')}});
+let cinemaRoom=null,cinemaTimers=[],cinemaReturn=null,cinemaInert=[],cinemaSession=0,cinemaOwnFullscreen=false;
+function cinemaFullscreen(){
+ const layer=$('#ytlayer');
+ if(layer.hidden||document.fullscreenElement)return;
+ if(!layer.requestFullscreen)return;
+ const session=cinemaSession;
+ try{
+  const request=layer.requestFullscreen();
+  Promise.resolve(request).then(()=>{
+   if(session!==cinemaSession||layer.hidden){
+    if(document.fullscreenElement===layer)document.exitFullscreen().catch(()=>{});
+    return;
+   }
+   cinemaOwnFullscreen=document.fullscreenElement===layer;
+   $('#ytfs').textContent='⛶ 전체 화면 중';
+  }).catch(()=>{ /* Browser denied fullscreen: full viewport theater remains available. */ });
+ }catch(e){}
+}
 function openYtLayer(item){
- if(!item||!item.yt){toast('재생할 유튜브 영상이 없어요');return}
- stopOpera();
- theaterOn=true;
- applyVol();
- const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer.querySelector('.ytbox');
- $('#ytt').textContent=item.title;frame.src=`https://www.youtube-nocookie.com/embed/${item.yt}?autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;box.classList.remove('fs');$('#ytfs').textContent='⛶ 전체보기';layer.hidden=false;modalOpen=true;
- const kick=()=>{if(frame&&frame.contentWindow)try{frame.contentWindow.postMessage(JSON.stringify({event:'listening',id:2,channel:'theater'}),'*')}catch(e){}};
- setTimeout(kick,400);setTimeout(kick,1200);setTimeout(kick,2500);
- frame.onload=()=>setTimeout(kick,300);
+ if(theaterOn)return; // Changing videos always requires leaving the auditorium first.
+ const id=item&&(item.yt||((String(item.url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/)||[])[1]));
+ if(!id||!/^[A-Za-z0-9_-]{11}$/.test(id)){toast('재생할 유튜브 영상이 없어요');return}
+ stopOpera();startAudio();
+ theaterOn=true;cinemaSession++;applyVol();
+ auto=null;for(const key in keys)keys[key]=false;jx=jy=0;
+ const layer=$('#ytlayer'),frame=$('#ytframe');
+ cinemaReturn={focus:document.activeElement,modalScroll:$('#mb').scrollTop,dockScroll:$('#db').scrollTop};
+ cinemaInert=[...$('#app').children].filter(el=>el!==layer).map(el=>({el,inert:el.inert}));
+ cinemaInert.forEach(({el})=>{el.inert=true});
+ $('#ytt').textContent=item.title||'작은 지구 극장';
+ $('#cinemaHint').textContent='다른 영상을 보려면 극장을 나가 플레이리스트에서 선택해 주세요.';
+ $('#ytfs').textContent='⛶ 전체 화면';layer.hidden=false;modalOpen=true;
+ try{cinemaRoom=YunseulCinema.mount($('#cinemaRoom'),$('#cinemaScreen'));}
+ catch(e){layer.classList.add('cinema-fallback');console.warn('Cinema WebGL fallback',e)}
+ const session=cinemaSession;
+ const kick=()=>{if(session===cinemaSession&&theaterOn&&frame.contentWindow){
+  const target='https://www.youtube-nocookie.com';
+  frame.contentWindow.postMessage(JSON.stringify({event:'listening',id:2,channel:'theater'}),target);
+  for(const event of ['onStateChange','onError'])frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'addEventListener',args:[event]}),target);
+ }};
+ frame.onload=kick;
+ // Load synchronously in the original user gesture for the best autoplay support.
+ frame.src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+ cinemaTimers=[400,1200,2500].map(ms=>setTimeout(kick,ms));
+ $('#ytx').focus();cinemaFullscreen();
 }
 function closeYtLayer(){
- const layer=$('#ytlayer'),frame=$('#ytframe'),box=layer&&layer.querySelector('.ytbox');
- if(!layer||layer.hidden)return;
- frame.src='';
- if(box)box.classList.remove('fs');
- layer.hidden=true;
- if(!dockOn&&!$('#modal').classList.contains('on'))modalOpen=false;
- if(theaterOn){
-  theaterOn=false;
-  applyVol();
+ const layer=$('#ytlayer'),frame=$('#ytframe');if(!layer||layer.hidden)return;
+ cinemaSession++;cinemaTimers.forEach(clearTimeout);cinemaTimers=[];
+ frame.onload=null;frame.removeAttribute('src');
+ if(document.fullscreenElement===layer){try{document.exitFullscreen().catch(()=>{})}catch(e){}}
+ cinemaOwnFullscreen=false;
+ if(cinemaRoom){cinemaRoom.dispose();cinemaRoom=null}
+ layer.classList.remove('cinema-fallback');$('#cinemaScreen').removeAttribute('style');layer.hidden=true;
+ cinemaInert.forEach(({el,inert})=>{el.inert=inert});cinemaInert=[];
+ modalOpen=dockOn||$('#modal').classList.contains('on');
+ theaterOn=false;applyVol();
+ if(cinemaReturn){
+  $('#mb').scrollTop=cinemaReturn.modalScroll;$('#db').scrollTop=cinemaReturn.dockScroll;
+  if(cinemaReturn.focus&&cinemaReturn.focus.isConnected)cinemaReturn.focus.focus({preventScroll:true});
+  cinemaReturn=null;
  }
 }
 $('#ytx').onclick=closeYtLayer;
-$('#ytfs').onclick=()=>{const box=$('#ytlayer').querySelector('.ytbox'),on=box.classList.toggle('fs');$('#ytfs').textContent=on?'⤢ 창으로':'⛶ 전체보기'};
-$('#ytlayer').addEventListener('pointerdown',e=>{if(e.target.id==='ytlayer')closeYtLayer()});
+$('#ytfs').onclick=cinemaFullscreen;
+document.addEventListener('fullscreenchange',()=>{
+ const current=document.fullscreenElement,layer=$('#ytlayer');
+ if(current===layer){cinemaOwnFullscreen=true;$('#ytfs').textContent='⛶ 전체 화면 중'}
+ else if(cinemaOwnFullscreen&&theaterOn&&!layer.contains(current)){closeYtLayer()}
+});
+$('#ytlayer').addEventListener('keydown',e=>{
+ if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeYtLayer();return}
+ if(e.key!=='Tab')return;
+ const first=$('#ytfs'),last=$('#ytframe');
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+ else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
 function bindMediaClicks(root){root.addEventListener('click',e=>{
  const yt=e.target.closest('[data-yt]');if(yt&&!e.target.closest('[data-del]')){const item=THEATER.find(x=>x.id===+yt.dataset.yt);if(item)openYtLayer(item);return}
  const song=e.target.closest('[data-song]');if(song&&!e.target.closest('[data-del]')){const item=OPERA.find(x=>x.id===+song.dataset.song);if(item)playOperaTrack(item)}
@@ -2271,7 +2322,7 @@ function geoTick(){
  const ns=(lat>=0?'N ':'S ')+Math.abs(lat).toFixed(1)+'°',ew=(lon>=0?'E ':'W ')+Math.abs(lon).toFixed(1)+'°';
  geoEl.textContent=ns+'  '+ew+'\n'+n.x.toFixed(3)+', '+n.y.toFixed(3)+', '+n.z.toFixed(3);
 }
-function frame(){requestAnimationFrame(frame);if(halted)return;resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const dt=Math.min(clock.getDelta(),.05);tw+=dt;
+function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clock.getDelta();return;}resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const dt=Math.min(clock.getDelta(),.05);tw+=dt;
  const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
