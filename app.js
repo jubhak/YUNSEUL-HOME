@@ -1592,7 +1592,7 @@ function sep(c,on,m,dt=.016){
  if(isFreePet(c)||walkSegment(c.n,target,activeWalkRadius(c)))c.n.copy(target);
  c.f.addScaledVector(c.n,-c.f.dot(c.n)).normalize();
 }
-const bubs=[];let EX=[],bkT=120,mwT=180,chase=0,chaseGap=120+rnd2()*60;
+const bubs=[];let EX=[],bkT=120,mwT=180,chase=0,chaseGap=60+rnd2()*60;
 function say(c,txt,h,lf=1.2){const el=document.createElement('div');el.className='bub';el.textContent=txt;document.body.appendChild(el);bubs.push({el,c,h,t:0,life:lf})}
 function dogNext(d,g){const r=rnd2();d.barks=0;d.bt=.25;d.meow=false;d.od=rnd2()<.5?-1:1;d.orb=.26+rnd2()*.1;
  if(r<.2){d.st='sit';d.stT=3.5+rnd2()*2.5}else if(r<.34){d.st='pant';d.stT=3+rnd2()*2}else if(r<.48){d.st='sit';d.stT=3+rnd2()*2}else if(r<.6){d.st='roll';d.stT=4.5+rnd2()*1.5}else if(r<.78){d.st='run';d.stT=3.5+rnd2()*1.5;d.tg=randNear(g.n,.55,.95)}else{d.st='orbit';d.stT=4+rnd2()*4}}
@@ -1636,13 +1636,13 @@ function npcUpdate(dt){
  else{steer(g,pn,0,dt);g.wave=gp<.8}
  sep(g,pn,.25,dt)}
  /* 2~3분마다: 강아지가 10초간 여기저기 뛰면 고양이가 쫓아온다 */
- if(started&&chase>0){chase-=dt;if(chase<=0){chase=0;chaseGap=120+rnd2()*60;d.st='orbit';d.stT=5+rnd2()*3;d.od=rnd2()<.5?-1:1;cat.mode='bf';cat.actT=5+rnd2()*5;cat.ct=.4}}
+ if(started&&chase>0){chase-=dt;if(chase<=0){chase=0;chaseGap=60+rnd2()*60;d.st='orbit';d.stT=5+rnd2()*3;d.od=rnd2()<.5?-1:1;cat.mode='bf';cat.actT=5+rnd2()*5;cat.ct=.4}}
  else if(started&&chaseGap>0)chaseGap-=dt;
- else if(started){chase=10;d.st='dash';d.turn=.15;d.tg=randNear(d.n,.9,1.45);cat.mode='chase';bark();say(d,'멍!',1.1);meow();say(cat,'야옹!',1.1)}
+ else if(started&&!d.job&&!cat.job){chase=10+rnd2()*5;chaseGap=60+rnd2()*60;d.job=null;cat.job=null;d.pose='';cat.pose='';d.sit=0;d.lay=0;d.st='dash';d.turn=1.2+rnd2()*.8;d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1);cat.mode='chase';cat.actT=0;cat.ct=0;bark();say(d,'멍!',1.1);meow();say(cat,'야옹!',1.1)}
  /* 강아지: 평소엔 여자아이 주변. 질주 중에는 방향을 자주 꺾는다 */
  d.sp=0;
  if(d.job){EX=[];relaxMove(d,dt);if(d.pose==='sit'){d.st='sit';d.sit=1}}
- else if(chase>0){d.st='dash';d.turn-=dt;d.sp=1.35;EX=[{n:pn,r:.16}];if(!d.tg)d.tg=randNear(d.n,.75,1.45);const left=steer(d,d.tg,d.sp,dt);if(d.turn<=0||left<.2){d.turn=.45+rnd2()*.4;d.tg=randNear(d.n,.75,1.45)}sep(d,pn,.14,dt)}
+ else if(chase>0){d.st='dash';d.turn-=dt;d.sp=1.45;EX=[{n:pn,r:.16}];if(!d.tg)d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1);const left=steer(d,d.tg,d.sp,dt);if(d.turn<=0||left<.2){d.turn=1.2+rnd2()*.8;d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1)}sep(d,pn,.14,dt)}
  else{d.stT-=dt;
   if(dg>.75&&d.st!=='orbit'&&d.st!=='run'&&d.st!=='bark'){d.st='orbit';d.stT=3}
   if(d.stT<=0)dogNext(d,g);
@@ -1655,7 +1655,7 @@ function npcUpdate(dt){
   }
   sep(d,g.n,.16,dt);sep(d,pn,.17,dt)}
  if(cat.job){EX=[];relaxMove(cat,dt)}
- else if(cat.mode==='chase'){const da=cat.n.angleTo(d.n);catAim.copy(d.n).addScaledVector(d.f,-.28).normalize();EX=[{n:pn,r:.16},{n:g.n,r:.12}];cat.sp=da>.5?1.28:1.12;steer(cat,da>.42?d.n:catAim,cat.sp,dt);sep(cat,pn,.14,dt);sep(cat,g.n,.11,dt);sep(cat,d.n,.12,dt)}
+ else if(cat.mode==='chase'){const da=cat.n.angleTo(d.n);catAim.copy(d.n).addScaledVector(d.f,-.22).normalize();EX=[{n:pn,r:.16},{n:g.n,r:.12}];cat.sp=da>.4?1.42:1.25;steer(cat,da>.35?d.n:catAim,cat.sp,dt);sep(cat,pn,.14,dt);sep(cat,g.n,.11,dt);sep(cat,d.n,.10,dt)}
  else if(window.bfs&&bfs.length){cat.actT-=dt;if(cat.mode!=='lick'&&cat.actT<=0){cat.mode='lick';cat.actT=2.3+rnd2()*1.1}
   if(cat.mode==='lick'){cat.sp=0;if(cat.actT<=0){cat.mode='bf';cat.actT=8+rnd2()*8;cat.ct=.2}}
   else{cat.ct-=dt;if(cat.ct<=0){cat.ct=5+rnd2()*5;cat.bi=Math.floor(rnd2()*bfs.length)}
@@ -1663,7 +1663,7 @@ function npcUpdate(dt){
    cat.sp=da>.9?.9:da>.3?.65:da>.1?.4:0;steer(cat,tg,cat.sp,dt);
    if(da<.12&&cat.hop<=0&&rnd2()<dt*1.5)cat.hop=.5}
   sep(cat,pn,.17,dt);sep(cat,g.n,.13,dt);sep(cat,d.n,.11,dt)}
- for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){d.st='orbit';d.sit=0;d.lay=0}if(id==='girl')c.wave=false}if(!(id==='girl'&&(girlSlide||(girlSwing&&girlSwing.phase!=='walk'))))guardNpc(c,dt);basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);if(c.job&&c.job.bouncy&&c.job.phase==='run')c.o.position.addScaledVector(c.n,Math.abs(Math.sin(tw*10))*.22);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
+ for(const c of [g,d,cat]){const id=c===g?'girl':c===d?'dog':'cat';if(id==='girl'&&girlSlide&&girlSlide.phase!=='walk'){c.mv=0;continue}if(snack&&snack.who===id&&snack.lock){c.n.copy(snack.lock.n);c.f.copy(snack.lock.f);c.sp=0;c.mv=0;if(id==='cat'){c.mode='bf';c.lk=0;c.hop=0}if(id==='dog'){d.st='orbit';d.sit=0;d.lay=0}if(id==='girl')c.wave=false}if(!(id==='girl'&&(girlSlide||(girlSwing&&girlSwing.phase!=='walk'))))guardNpc(c,dt);basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);if(c.job&&c.job.bouncy&&c.job.phase==='run')c.o.position.addScaledVector(c.n,Math.abs(Math.sin(tw*10))*.22);c.mv+=((c.sp>0?1:0)-c.mv)*Math.min(1,dt*8)}
  {const r=g.rig;
   r.legs.forEach(l=>{l.position.y=.36});
   if(r.shades)r.shades.visible=g.pose==='lie';
@@ -1943,7 +1943,13 @@ function finishSlide(g){
  if(forward.lengthSq()>1e-8)yaw=Math.atan2(forward.x,forward.z);
  rideStand();boy.position.set(0,R,0);boy.rotation.set(0,yaw,0);
  jh=0;jv=0;amp=0;boyNav.nav=null;ride=null;
- // Girl waits until the boy is fully off, then takes the slide alone.
+ const forwardWorld=forward.clone().applyQuaternion(world.quaternion.clone().invert()).normalize();
+ const watchSpot=safeWalkGoal(safe.clone().addScaledVector(forwardWorld,.38).normalize(),.72,safe)||safe;
+ auto={n:watchSpot,reach:.04,onArrive(){
+  const toSlide=meshN(g).applyQuaternion(world.quaternion);toSlide.y=0;
+  if(toSlide.lengthSq()>1e-6)yaw=Math.atan2(toSlide.x,toSlide.z);
+  boy.rotation.set(0,yaw,0);
+ }};
  startGirlSlide(g);
 }
 let girlSlide=null;
@@ -1959,8 +1965,8 @@ function girlSlidePose(dt){
  const setPoint=(point,seated=0)=>{c.o.position.copy(point).applyQuaternion(g.quaternion).add(g.position).addScaledVector(up,seated*.23);basisQ(up,forward,c.o.quaternion);c.n.copy(c.o.position).normalize();c.f.copy(forward).addScaledVector(c.n,-forward.dot(c.n)).normalize();c.rig.body.position.set(0,0,0);c.rig.body.rotation.set(0,0,0);c.rig.legs.forEach((l,i)=>l.rotation.set(-Math.PI/2*seated+Math.sin(s.t*11+i*Math.PI)*.36*(1-seated),0,0));c.rig.arms[0].rotation.set(-.35*seated,0,-.25);c.rig.arms[1].rotation.set(-.35*seated,0,.25)};
  s.t+=dt;
  if(s.phase==='walk'){
-  const left=relaxStep(c,s.goal,.82,dt);c.sp=.82;c.mv=1;basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);
-  if(left<.045){s.phase='climb';s.t=0;s.from.copy(c.o.position);s.from.sub(g.position).applyQuaternion(g.quaternion.clone().invert())}return;
+  const left=relaxStep(c,s.goal,.88,dt);c.sp=.88;c.mv=1;basisQ(c.n,c.f,c.o.quaternion);c.o.position.copy(c.n).multiplyScalar(R);
+  if(left<.085){s.phase='climb';s.t=0;s.from.copy(c.o.position);s.from.sub(g.position).applyQuaternion(g.quaternion.clone().invert())}return;
  }
  if(s.phase==='climb'){
   const steps=[s.from,...g.userData.steps,g.userData.slideCurve.getPoint(0)],progress=Math.min(steps.length-1,s.t/.23),i=Math.min(steps.length-2,Math.floor(progress)),u=progress-i;
@@ -1975,8 +1981,10 @@ function girlSlidePose(dt){
  const target=safe.clone().multiplyScalar(R),face=forward.clone().addScaledVector(safe,-forward.dot(safe)).normalize(),q=new T.Quaternion();basisQ(safe,face,q);c.o.position.lerpVectors(s.from,target,e);c.o.quaternion.copy(s.q).slerp(q,e);c.rig.legs.forEach(l=>l.rotation.set(-Math.PI/2*(1-e),0,0));
  if(u>=1){
   c.n.copy(safe);c.f.copy(face);c.nav=null;c.mv=c.sp=0;
-  // Resume orbiting the boy after she finishes the slide alone.
-  c.st='orbit';c.t=6+rnd2()*4;c.od=rnd2()<.5?-1:1;c.orb=.36+rnd2()*.14;girlSlide=null;finishAiActivity('slide');
+  const pn=TOP.clone().applyQuaternion(world.quaternion.clone().invert()).normalize();
+  const nearBoy=safeWalkGoal(randNear(pn,.34,.52),walkRadius(c),c.n)||pn;
+  c.job={phase:'run',n:nearBoy,face:faceTan(nearBoy,pn),done:'sit',sp:.78,onArrive(){c.job=null;c.st='orbit';c.t=8+rnd2()*4;c.od=rnd2()<.5?-1:1;c.orb=.36+rnd2()*.14}};
+  girlSlide=null;finishAiActivity('slide');
  }
 }
 /* Swing seat sits inside the swing footprint. Leaving there freezes walking
@@ -2102,16 +2110,16 @@ function rideTick(dt){
    swingSeat(th,rideV2);pose=1;
   }
   pivot.rotation.x=th;
-  const len=rideQuat(g,rideV2,rideAxZ,Math.PI/2,world.quaternion);
   boy.quaternion.setFromAxisAngle(AY,Math.PI);
   pivot.updateWorldMatrix(true,false);
   pivot.getWorldQuaternion(rideQ3);
   boy.quaternion.premultiply(rideQ3);
-  boy.position.set(0,len,0);
+  g.updateWorldMatrix(true,false);
+  boy.position.copy(g.localToWorld(rideV.copy(rideV2)));
   rideV.set(0,-HIP*pose,0).applyQuaternion(boy.quaternion);boy.position.add(rideV);
   legs[0].rotation.x=legs[1].rotation.x=-1.15*pose;
   body.rotation.set(0,0,0);body.position.y=0;
-  g.updateWorldMatrix(true,true);boy.updateMatrixWorld(true);
+  boy.updateMatrixWorld(true);
   arms.forEach(a=>{gripSwing(g,a);a.rotation.x*=pose;a.rotation.z*=pose});
   return}
  ride.t+=dt;
@@ -2565,7 +2573,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clo
  if(ride&&ride.kind==='swing'&&ride.phase!=='off'&&!dockOn&&(Math.hypot(ix,iz)>.01||Math.hypot(jx,jy)>.2))rideOff();
  if(ride||(rest&&rest.kind==='tea'&&rest.phase==='align'))ix=iz=0;
  else if(auto&&(!modalOpen||dockOn)){tmp.copy(auto.n).applyQuaternion(world.quaternion);const ang=Math.acos(Math.min(1,tmp.y));
-  if(ang<auto.reach){const s=auto.spot,rd=auto.ride,rg=auto.group,lie=auto.lie,bed=auto.bed,tea=auto.tea;auto=null;if(s)openSpot(s);else if(rd)beginRide(rd,rg);else if(lie)startLie(lie);else if(bed!=null)beginBed(bed);else if(tea!=null)beginTeaSit(tea)}
+  if(ang<auto.reach){const s=auto.spot,rd=auto.ride,rg=auto.group,lie=auto.lie,bed=auto.bed,tea=auto.tea,onArrive=auto.onArrive;auto=null;if(onArrive)onArrive();else if(s)openSpot(s);else if(rd)beginRide(rd,rg);else if(lie)startLie(lie);else if(bed!=null)beginBed(bed);else if(tea!=null)beginTeaSit(tea)}
   else{const current=TOP.clone().applyQuaternion(world.quaternion.clone().invert()),target=walkTarget(boyNav,current,auto.n,.72);tmp.copy(target).applyQuaternion(world.quaternion);const l=Math.hypot(tmp.x,tmp.z)||1;if(current.angleTo(target)<.005){ix=iz=0}else{ix=tmp.x/l;iz=-tmp.z/l}}}
  if(modalOpen&&!dockOn){ix=iz=0}
  let m=Math.hypot(ix,iz);if(m>1){ix/=m;iz/=m;m=1}
