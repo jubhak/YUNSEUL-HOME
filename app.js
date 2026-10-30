@@ -1099,8 +1099,8 @@ const keys={};let jx=0,jy=0,near=null,nearRide=null,nearRelax=null,jh=0,jv=0;
 const MV=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();
  if(modalOpen){if(k==='escape')closeModal();return}
- if(MV.includes(k)){if(snack)endSnack();keys[k]=true;auto=null;stopLie();e.preventDefault()}
- if(k===' '){if(ride)return;if(snack)endSnack();stopLie();e.preventDefault();if(!e.repeat&&jh<=0)jv=6.5}
+ if(MV.includes(k)){if(snack)endSnack();keys[k]=true;auto=null;stopLie();if(rest||cine)endRest();e.preventDefault()}
+ if(k===' '){if(ride)return;if(snack)endSnack();stopLie();if(rest||cine)endRest();e.preventDefault();if(!e.repeat&&jh<=0)jv=6.5}
  if((k==='enter'||k==='e')&&!e.repeat&&(near||nearRide||nearRelax)){e.preventDefault();activateNearby()}});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
@@ -1131,11 +1131,11 @@ cv.addEventListener('wheel',e=>{e.preventDefault();if(snack)return;zt=Math.min(1
 function ring(n){const o=new T.Mesh(new T.RingGeometry(.22,.32,28),new T.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:.9,depthWrite:false}));o.position.copy(n).multiplyScalar(R+.04);o.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),n);o.userData={a:0,life:.8,ring:true};world.add(o);fx.push(o)}
 cv.addEventListener('pointerup',e=>{if(rot&&e.pointerId===rot.id){endOrbit();return}pts.delete(e.pointerId);if(modalOpen||multi||Math.hypot(e.clientX-dx,e.clientY-dy)>10)return;
  v2.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(v2,cam);
- const hit=ray.intersectObjects([...spotObjs,...rides,...placeMeshes,...relaxHits,planet],true)[0];if(!hit)return; let o=hit.object;while(o&&o!==planet&&!o.userData.spot&&!o.userData.ride&&!o.userData.towel&&!o.userData.towelHost&&!o.userData.relax)o=o.parent;if(!o)return;
+ const hit=ray.intersectObjects([...spotObjs,...rides,...placeMeshes,...relaxHits,planet],true)[0];if(!hit){if(rest||cine)endRest();return} let o=hit.object;while(o&&o!==planet&&!o.userData.spot&&!o.userData.ride&&!o.userData.towel&&!o.userData.towelHost&&!o.userData.relax)o=o.parent;if(!o){if(rest||cine)endRest();return}
  if(o.userData.towelHost)o=o.userData.towelHost;
  if(snack)endSnack();
- if(o.userData.relax==='bed'){goBed(o);return}
- if(o.userData.relax==='tea'){goTea(o.userData.chair||0);return}
+ if(o.userData.relax==='bed'){if(rest&&rest.kind==='bed'){endRest();return}goBed(o);return}
+ if(o.userData.relax==='tea'){if(rest&&rest.kind==='tea'){endRest();return}goTea(o.userData.chair||0);return}
  if(o.userData.towel){goTowel(o);return}
  if(o.userData.ride){if(!(ride&&ride.kind==='swing')){goRide(o);return}}
  if(ride){if(ride.kind==='swing'&&o===planet){const n=world.worldToLocal(hit.point.clone()).normalize();ride.after={n,reach:.04};rideOff();ring(n)}return}
@@ -1672,7 +1672,7 @@ function npcUpdate(dt){
   else{g.walk+=dt*10*g.mv;const s=Math.sin(g.walk);r.legs[0].rotation.x=s*.8*g.mv;r.legs[1].rotation.x=-s*.8*g.mv;r.arms[0].rotation.x=-s*.7*g.mv;r.arms[1].rotation.x=s*.7*g.mv;
   r.arms[1].rotation.z+=((g.wave&&g.mv<.2?2.5+Math.sin(tw*9)*.3:0)-r.arms[1].rotation.z)*Math.min(1,dt*10);
   r.body.position.set(0,Math.abs(s)*.06*g.mv+Math.sin(tw*2+1)*.012,0);r.body.rotation.set(0,0,0);r.head.rotation.set(0,0,0)}}
- {const r=d.rig,st=d.st,k=Math.min(1,dt*6);if(d.pose==='sit'){d.lay=0}d.sit+=((st==='sit'?1:0)-d.sit)*k;d.lay+=((st==='roll'?1:0)-d.lay)*Math.min(1,dt*3.5);
+ {const r=d.rig,st=d.st,k=Math.min(1,dt*6);if(d.pose==='sit'||d.job||d.mv>.05){d.lay=0}d.sit+=((st==='sit'?1:0)-d.sit)*k;d.lay+=(((st==='roll'&&!d.job&&d.mv<=.05)?1:0)-d.lay)*Math.min(1,dt*(d.job?8:3.5));
   d.walk+=dt*(9+8*d.sp)*(st==='dash'?1.3:1)*d.mv;const s=Math.sin(d.walk),tr=s*.9*d.mv*(1-d.sit)*(1-d.lay),sw=Math.sin(tw*6)*.7*d.lay;
   d.barkP=Math.max(0,d.barkP-dt);const bk=d.barkP>0?1:0,pa=st==='dash'||st==='pant'?1:st==='sit'?.7:st==='run'?1:st==='roll'?.6:st==='orbit'?.35:0;
   r.legs[0].rotation.x=tr+.6*d.sit+sw;r.legs[1].rotation.x=-tr+.6*d.sit-sw;r.legs[2].rotation.x=-tr-.9*d.sit+sw*1.2;r.legs[3].rotation.x=tr-.9*d.sit-sw*1.2;
@@ -1856,7 +1856,7 @@ function userActivity(e){
  // Keys used by inputs/UI are not world movement commands.
  const typing=e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]');
  const movement=e.type==='keydown'&&!typing&&(MV.includes(e.key.toLowerCase())||[' ','Enter','e','E'].includes(e.key));
- const pointer=e.type==='pointermove'||((e.type==='pointerdown'||e.type==='wheel')&&(e.target===cv||joy.contains(e.target)));
+ const pointer=(e.type==='pointerdown'||e.type==='wheel')&&(e.target===cv||joy.contains(e.target));
  if(movement||pointer)cancelAiForInput();
 }
 for(const type of ['keydown','keyup','pointerdown','pointerup','pointermove','wheel','touchstart'])addEventListener(type,userActivity,{capture:true,passive:true});
@@ -2196,16 +2196,16 @@ function assignSeats(clicked){const used=new Set([clicked]);const take=p=>{if(!u
 function beginTeaSit(chair){markAiStarted('tea');const seats=assignSeats(chair),ch=teaRoot.userData.chairs[seats.boy],n=meshN(ch),face=faceTan(n,teaRoot.userData.n);
  /* Ease the globe under the chair instead of snapping — feels like walking into the seat. */
  rest={kind:'tea',phase:'align',t:0,alignDur:.62,alignFrom:world.quaternion.clone(),alignTo:quatAlignUp(n),seats,heartT:.2,yaw:yawAlong(face)+Math.PI};
- teaFocus(.44);jh=0;jv=0}
+ teaFocus(.52);jh=0;jv=0}
 function teaApproach(id){
  const c=npcs[id],marker=meshN(teaRoot.userData.chairs[rest.seats[id]].userData.approach);
  c.nav=null;
  return isFreePet(c)?petGoal(marker):(safeWalkGoal(marker,walkRadius(c)+.06,c.n)||marker);
 }
-function startGirlTea(){const tableN=teaRoot.userData.n,n=teaApproach('girl');npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:.42,teaSeat:true,onArrive(){if(!rest)return;rest.phase='waitdog';rest.t=0}};rest.phase='girl';teaFocus(.4)}
-function startDogTea(){const n=teaApproach('dog');npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:.78,teaSeat:true,bouncy:true,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0}};rest.phase='dog';teaFocus(.38)}
-function startCatTea(){const n=teaApproach('cat');npcs.cat.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.35,teaSeat:true,onArrive(){if(!rest)return;showParty()}};rest.phase='cat';teaFocus(.36)}
-function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,teaRoot.userData.tableSurface,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,teaRoot.userData.tableSurface,dp.z);rest.phase='party';rest.heartT=.15;orbitQ.identity();teaFocus(.28,true)}
+function startGirlTea(){const tableN=teaRoot.userData.n,n=teaApproach('girl');npcs.girl.job={phase:'run',n,face:faceTan(n,tableN),done:'sit',sp:.42,teaSeat:true,onArrive(){if(!rest)return;rest.phase='waitdog';rest.t=0}};rest.phase='girl';teaFocus(.48)}
+function startDogTea(){const n=teaApproach('dog');npcs.dog.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:.78,teaSeat:true,bouncy:true,onArrive(){if(!rest)return;rest.phase='waitcat';rest.t=0}};npcs.dog.st='sit';npcs.dog.lay=0;npcs.dog.sit=1;rest.phase='dog';teaFocus(.44)}
+function startCatTea(){const n=teaApproach('cat');npcs.cat.job={phase:'run',n,face:faceTan(n,teaRoot.userData.n),done:'sit',sp:1.35,teaSeat:true,onArrive(){if(!rest)return;showParty()}};rest.phase='cat';teaFocus(.42)}
+function showParty(){const props=teaRoot.userData.props;props.visible=true;const put=(mesh,seat)=>{const p=teaRoot.userData.chairs[seat].position;mesh.position.set(p.x*.42,teaRoot.userData.tableSurface,p.z*.42)};put(teaRoot.userData.coffee,rest.seats.boy);const g=teaRoot.userData.chairs[rest.seats.girl].position,camL=cam.position.clone();teaRoot.worldToLocal(camL);camL.y=0;if(camL.lengthSq()<1e-6)camL.set(0,0,1);camL.normalize();const side=new T.Vector3(-g.z,0,g.x);if(side.lengthSq()<1e-6)side.set(1,0,0);side.normalize();if(side.dot(camL)<0)side.negate();const dp=vA.set(g.x*.38+side.x*.4,0,g.z*.38+side.z*.4);if(dp.length()>1.15)dp.setLength(1.15);teaRoot.userData.drink.position.set(dp.x,teaRoot.userData.tableSurface,dp.z);rest.phase='party';rest.heartT=.15;orbitQ.identity();teaFocus(.35,true)}
 function relaxStep(c,tg,sp,dt){
  const n=c.n,f=c.f,aim=walkTarget(c,n,tg,walkRadius(c));vA.copy(aim).addScaledVector(n,-aim.dot(n));if(vA.lengthSq()<1e-6)vA.copy(f);vA.normalize();
  const ang=Math.atan2(n.dot(vC.crossVectors(f,vA)),f.dot(vA)),mx=5*dt;f.applyAxisAngle(n,Math.max(-mx,Math.min(mx,ang)));
@@ -2540,7 +2540,7 @@ function restFaceDistance(direction,up){
   restDelta.copy(face).sub(look);const depth=restDelta.dot(direction),radius=.78;
   distance=Math.max(distance,depth+radius+(Math.abs(restDelta.dot(restRight))+radius)/tanX,depth+radius+(Math.abs(restDelta.dot(restScreenUp))+radius)/tanY);
  }
- return distance;
+ return (rest&&rest.kind==='tea')?distance*1.25:distance;
 }
 const nearHere=new T.Vector3(),nearLocal=new T.Vector3(),nearInvQ=new T.Quaternion();
 /* Front/back/side all count: use the object's local footprint, not a single stand point. */
