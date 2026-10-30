@@ -2191,7 +2191,7 @@ function quatAlignUp(n){const up=n.clone().applyQuaternion(world.quaternion);if(
 function goTea(chair){if(ride&&ride.kind==='slide')return;if(ride&&ride.kind==='swing')rideOff();endRest();stopLie();boyNav.nav=null;
  const ch=teaRoot.userData.chairs[chair],approach=meshN(ch.userData.approach),goal=safeWalkGoal(approach,.78,TOP.clone().applyQuaternion(world.quaternion.clone().invert()))||approach;
  teaFocus(.52);auto={n:goal,reach:.05,tea:chair};ring(goal)}
-function beginBed(index){markAiStarted('bed');alignUp(meshN(bedRoot));jh=0;jv=0;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false,heartT:.25};focusN(meshN(bedRoot),.20);toast('썬베드에 누웠어요')}
+function beginBed(index){markAiStarted('bed');alignUp(meshN(bedRoot));jh=0;jv=0;rest={kind:'bed',phase:'lie',t:0,bed:index,called:false,heartT:.25};focusN(meshN(bedRoot),.235);toast('썬베드에 누웠어요')}
 function assignSeats(clicked){const used=new Set([clicked]);const take=p=>{if(!used.has(p)){used.add(p);return p}for(let i=0;i<4;i++)if(!used.has(i)){used.add(i);return i}return 0};return {boy:clicked,girl:take((clicked+1)%4),dog:take((clicked+2)%4),cat:take((clicked+3)%4)}}
 function beginTeaSit(chair){markAiStarted('tea');const seats=assignSeats(chair),ch=teaRoot.userData.chairs[seats.boy],n=meshN(ch),face=faceTan(n,teaRoot.userData.n);
  /* Ease the globe under the chair instead of snapping — feels like walking into the seat. */
@@ -2253,7 +2253,7 @@ function relaxTick(dt){try{
  if(rest&&rest.kind==='bed'){
   rest.heartT-=dt;if(rest.heartT<=0){rest.heartT=.95;rest.heartDue=true}
  }
- if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(meshN(bedRoot),.20);toast('여자아이도 누웠어요')}};focusN(meshN(bedRoot),.20)}}
+ if(rest&&rest.kind==='bed'&&rest.phase==='lie'){rest.t+=dt;if(!rest.called&&rest.t>=5){rest.called=true;const other=bedRoot.userData.beds[1-rest.bed],n=meshN(other.userData.foot),head=meshN(other.userData.head),face=faceTan(n,head).negate();npcs.girl.job={phase:'run',n,face,done:'lie',sp:1.35,onArrive(){if(!rest)return;rest.phase='girl';focusN(meshN(bedRoot),.235);toast('여자아이도 누웠어요')}};focusN(meshN(bedRoot),.235)}}
  if(rest&&rest.kind==='tea'){
   if(rest.phase==='align'){
    rest.t+=dt;const u=Math.min(1,rest.t/rest.alignDur),e=u*u*(3-2*u);
@@ -2515,9 +2515,9 @@ function restCameraFrame(){
   const bed=rest&&rest.kind==='bed';
   if(bed){
    bedRoot.updateWorldMatrix(true,true);bedRoot.getWorldQuaternion(restFrameQ);
-   restUp.applyQuaternion(restFrameQ);
-   restDir.set(0,.65,1.38).normalize().applyQuaternion(restFrameQ);
-   bedRoot.localToWorld(cine.pos.set(0,.68,.24));
+   restUp.set(-.22,.92,-.33).normalize().applyQuaternion(restFrameQ);
+   restDir.set(-.022,.332,.943).normalize().applyQuaternion(restFrameQ);
+   bedRoot.localToWorld(cine.pos.set(-.375,1.335,-.185));
   }else{
    boy.updateWorldMatrix(true,true);boy.getWorldQuaternion(restFrameQ);
    // On a towel the torso faces almost straight up. Keep feet-to-head vertical.
