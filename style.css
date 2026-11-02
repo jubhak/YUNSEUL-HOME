@@ -192,3 +192,18 @@ button.note{display:block;width:100%;text-align:left;border:0;font:inherit;color
 #block{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:#fff;color:#2b4a52;font:700 22px var(--f1);text-align:center}
 #block[hidden]{display:none}
 #app[hidden]{display:none}
+
+/* ===== Spacious cozy home HUD (the room itself is rendered in Three.js) ===== */
+#cozyHome[hidden]{display:none!important}
+#cozyHome{position:fixed;inset:0;z-index:35;pointer-events:none;color:#fff5df;font-family:"Noto Sans KR",sans-serif;background:linear-gradient(180deg,rgba(19,28,40,.40),transparent 24%,transparent 78%,rgba(19,28,40,.3))}
+.home-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:calc(22px + env(safe-area-inset-top)) 30px 16px}
+.home-kicker{display:block;font-size:10px;font-weight:700;letter-spacing:3px;color:#f7d7a1}
+.home-bar h2{font-size:23px;letter-spacing:-.7px;margin:5px 0;font-weight:700;color:#fff5df;text-shadow:0 2px 18px #2a251a55}
+#cozyHome button{pointer-events:auto;border:1px solid #ffffff42;border-radius:24px;background:#293546bf;color:#fff5df;padding:11px 19px;font:500 13px "Noto Sans KR",sans-serif;cursor:pointer;backdrop-filter:blur(12px);transition:background .2s,transform .2s;box-shadow:0 4px 20px #151a2920}
+#cozyHome button:hover{background:#4c5b6fe6;transform:translateY(-2px)}
+#cozyHome button:focus-visible{outline:3px solid #ffdc9c;outline-offset:4px}
+#cozyHome button[hidden]{display:none}
+.home-note{position:absolute;bottom:calc(83px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:max-content;max-width:90vw;text-align:center;font-size:13px;line-height:1.7;background:#293546bf;padding:9px 19px;border:1px solid #ffffff22;border-radius:18px;backdrop-filter:blur(12px);text-wrap:balance}
+.home-actions{position:absolute;bottom:calc(22px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:9px;white-space:nowrap}
+.inside-cozy-home #c{touch-action:none;cursor:pointer}
+@media(max-width:680px){.home-bar{padding:calc(15px + env(safe-area-inset-top)) 16px 12px}.home-kicker{font-size:8px;letter-spacing:1.8px}.home-bar h2{font-size:17px}.home-bar #homeExit{font-size:11px;padding:9px 12px}.home-actions{bottom:calc(18px + env(safe-area-inset-bottom));gap:6px}#cozyHome .home-actions button{font-size:10px;padding:10px 11px}.home-note{font-size:11px;bottom:calc(78px + env(safe-area-inset-bottom));padding:8px 13px}}

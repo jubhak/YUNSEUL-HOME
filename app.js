@@ -27,7 +27,9 @@ const LS='jng_wallet_v1';let store={id:'',wallet:1e8,buys:[]};
 try{const o=JSON.parse(localStorage.getItem(LS)||'null');if(o&&o.id)store=o}catch(e){}
 if(!store.id)store.id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,12);
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store))}catch(e){}};save();
+let cozyHouse=null,cozyRoom=null,nightMeteors=null;
 const SPOTS={
+ home:{icon:'🏡',name:'우리 집',reach:.62},
  board:{icon:'📌',name:'게시판',reach:.34,html:()=>NOTICES.map(n=>`<details><summary><span>${n.t}</span><small>${n.d}</small></summary><p>${n.b}</p></details>`).join('')},
  shop:{icon:'🛍️',name:'쇼핑센터',reach:.48,html:shopHtml},
  mail:{icon:'📮',name:'문의하기',reach:.26,html:()=>`<p>궁금한 점이 있으면 편하게 편지를 보내주세요.</p><p>✉️ ${CONTACT.mail.toUpperCase()}</p><div class="row"><a class="btn" href="mailto:${CONTACT.mail}">메일 보내기</a></div>`},
@@ -39,7 +41,7 @@ let modalOpen=false,toastT,auto=null;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)};
 function shopHtml(){return shopPage()}
 function cartBar(){}
-function openSpot(k){if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
+function openSpot(k){if(k==='home'){cozyRoom?.enter();return}if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function closeModal(){if(!$('#ytlayer').hidden){closeYtLayer();return}if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on');$('#mb').innerHTML=''}
 $('#mc').onclick=closeModal;$('#modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')closeModal()});
 
@@ -511,6 +513,12 @@ function buildSpots(){
  // Keep building entrances and their immediate surroundings clear.
  // Append after buildRelax(), which initializes the lounge exclusion areas.
  window.clearN.push({n:operaN.clone(),pad:.55},{n:theaterN.clone(),pad:.59});
+ // Every fixed structure and saved ground prop is considered before choosing home.
+ const homeObstacles=[...obstacles,{n:operaN,radius:2.35},{n:theaterN,radius:2.70}];
+ const homeSite=YunseulHome.chooseSite(T,homeObstacles,R);
+ cozyHouse=YunseulHome.buildExterior(T);cozyHouse.userData.siteClearance=homeSite.clearance;
+ spot('home',cozyHouse,homeSite.n,cozyHouse.userData.height);
+ window.clearN.push({n:homeSite.n.clone(),pad:.69});
  const bn=spotObjs.find(s=>s.userData.spot==='board').userData.n,sn=spotObjs.find(s=>s.userData.spot==='shop').userData.n,mid=bn.clone().add(sn).normalize();
  world.quaternion.setFromUnitVectors(mid,new T.Vector3(0,1,0));
  world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(1,0,0),-.22));
@@ -1320,6 +1328,7 @@ cv.addEventListener('pointerup',e=>{if(rot&&e.pointerId===rot.id){endOrbit();ret
  v2.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(v2,cam);
  const hit=ray.intersectObjects([...spotObjs,...rides,...placeMeshes,...relaxHits,planet],true)[0];if(!hit){if(rest||cine)endRest();return} let o=hit.object;while(o&&o!==planet&&!o.userData.spot&&!o.userData.ride&&!o.userData.towel&&!o.userData.towelHost&&!o.userData.relax)o=o.parent;if(!o){if(rest||cine)endRest();return}
  if(o.userData.towelHost)o=o.userData.towelHost;
+ if(o.userData.spot==='home'){cozyRoom?.enter();return;}
  if(snack)endSnack();
  if(o.userData.relax==='bed'){if(rest&&rest.kind==='bed'){endRest();return}goBed(o);return}
  if(o.userData.relax==='tea'){if(rest&&rest.kind==='tea'){endRest();return}goTea(o.userData.chair||0);return}
@@ -1451,7 +1460,7 @@ function cloudUpdate(dt){const a=cam.aspect,c=cur.ct,wx=wxc.wx,dk=1-.3*wx;
   const w=o.S*(.12+.88/d),fi=Math.min(1,Math.max(0,(12.5-d)/4)),fo=Math.min(1,Math.max(0,(d-.6)/.9));
   o.m.scale.set(w*o.dir,w*.5,1);o.m.position.set(o.X*(a*1.15+.15)*(.3+.7/d),.2+o.Hc/d+w*.19,-d*.3);
   o.mat.opacity=(.92-.3*U.uNight.value)*Math.min(fi,fo);o.mat.color.setRGB(c.x*dk,c.y*dk,c.z*dk)}}
-const fun={u:{on:false},sh:{on:false}};let nextU=20,nextS=45;
+const fun={u:{on:false},sh:{on:false}};let nextU=YunseulHome.skyTiming.ufoInitial,nextS=45;
 function buildFun(){
  sx.ufo=tex(256,128,g=>{g.save();g.translate(128,70);g.scale(1,.42);let r=g.createRadialGradient(0,0,10,0,0,122);r.addColorStop(0,'rgba(180,255,240,.3)');r.addColorStop(1,'rgba(180,255,240,0)');g.fillStyle=r;g.beginPath();g.arc(0,0,122,0,6.2832);g.fill();g.restore();
   g.shadowColor='rgba(170,230,255,.9)';g.shadowBlur=9;
@@ -1477,7 +1486,7 @@ function buildFun(){
 }
 function funUpdate(dt){const a=cam.aspect,c=cur.ct,tn=(m,k=.55)=>m.material.color.setRGB(k+(1-k)*c.x,k+(1-k)*c.y,k+(1-k)*c.z);
  const u=fun.u;
- if(!u.on){nextU-=dt;if(nextU<=0&&wxc.storm<.5){nextU=50+rnd2()*60;Object.assign(u,{on:true,t:0,sp:false,side:rnd2()<.5?-1:1,y1:.5+rnd2()*.1});u.x1=u.side*Math.min(a*.8,Math.max(a*.55,.62))}}
+ if(!u.on){nextU-=dt;if(nextU<=0&&wxc.storm<.5){nextU=YunseulHome.skyTiming.ufoWait(rnd2);Object.assign(u,{on:true,t:0,sp:false,side:rnd2()<.5?-1:1,y1:.5+rnd2()*.1});u.x1=u.side*Math.min(a*.8,Math.max(a*.55,.62))}}
  else{u.t+=dt;const t=u.t,W=.3,sd=u.side;let x=u.x1,y=u.y1,sc=1,ba=0,dp=-1;
   if(t<1.6){const e=1-Math.pow(1-t/1.6,3);x=sd*(a+.3)+(u.x1-sd*(a+.3))*e;y=u.y1+.25*(1-e)}
   else if(t<7.2){y+=Math.sin(tw*5)*.006;ba=Math.min(1,(t-1.6)/1)*(t>6.4?Math.max(0,(7.2-t)/.8):1);
@@ -2752,7 +2761,8 @@ function geoTick(){
  const ns=(lat>=0?'N ':'S ')+Math.abs(lat).toFixed(1)+'°',ew=(lon>=0?'E ':'W ')+Math.abs(lon).toFixed(1)+'°';
  geoEl.textContent=ns+'  '+ew+'\n'+n.x.toFixed(3)+', '+n.y.toFixed(3)+', '+n.z.toFixed(3);
 }
-function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clock.getDelta();return;}resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const dt=Math.min(clock.getDelta(),.05);tw+=dt;
+function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clock.getDelta();return;}resetTeaRig({legs});for(const c of Object.values(npcs))resetTeaRig(c.rig);const rawDt=clock.getDelta(),dt=Math.min(rawDt,.05);tw+=dt;
+ if(cozyRoom?.isOpen){todTick(dt);cozyRoom.tick(Math.min(rawDt,.15));cozyRoom.render(rd);return;}
  const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
@@ -2788,7 +2798,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clo
   if(u.ring){o.scale.setScalar(1+r*1.6);o.material.opacity=.9*(1-r)}else{o.scale.setScalar(.08+r*.3);o.material.opacity=.55*(1-r);o.position.y+=0}}
   markers.forEach((o,i)=>{o.m.position.y=o.y+Math.sin(tw*3+i)*.1;o.m.rotation.y+=dt*2});
  cl.copy(cam.position);world.worldToLocal(cl);
- spotObjs.forEach(o=>{basisQ(o.userData.n,cl,q2);o.quaternion.slerp(q2,Math.min(1,dt*5))});
+ spotObjs.forEach(o=>{if(o.userData.spot==='home')return;basisQ(o.userData.n,cl,q2);o.quaternion.slerp(q2,Math.min(1,dt*5))});
  // Shops and facilities share one nearest-target selection. Proximity uses each
  // object's footprint so front, back and sides all raise the same action.
  near=null;nearRide=null;nearRelax=null;
@@ -2824,7 +2834,7 @@ function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clo
  cameraUp.lerp(restUp,lookK).normalize();
  dkv=dkT?Math.min(1,dkv+dt/1.5):Math.max(0,dkv-dt/1.3);const dk1=ease(Math.min(1,dkv*2)),dk2=ease(Math.max(0,dkv*2-1)),wide=innerWidth>=760;
  const shotDir=camDir.clone().applyQuaternion(orbitQ),shotUp=cine?cameraUp:cameraUp.clone().applyQuaternion(orbitQ);const D=Math.max(35*k*zm*(1+(1-e)*.7)*(1+dk1),restFaceDistance(shotDir,shotUp));cam.position.copy(look).addScaledVector(shotDir,D);if(!cine)cam.position.x+=Math.sin(tw*.4)*.12;cam.up.copy(shotUp);oT.copy(look);cam.lookAt(oT);cam.setViewOffset(innerWidth,innerHeight,wide?dk2*innerWidth*.25:0,dk1*innerHeight*(wide?.1:.28),innerWidth,innerHeight);
- for(const landmark of spotObjs)if(landmark.userData.display)CultureLandmarks.updateDisplays(landmark,tw);todTick(dt);wxTick(dt);etTick(dt);seaUpdate(dt);geoTick();for(const f of flowerSway)f.g.rotation.z=Math.sin(tw*1.35+f.ph)*f.a;bfUpdate(dt);
+ for(const landmark of spotObjs)if(landmark.userData.display)CultureLandmarks.updateDisplays(landmark,tw);todTick(dt);wxTick(dt);etTick(dt);seaUpdate(dt);if(nightMeteors)nightMeteors.update(dt);geoTick();for(const f of flowerSway)f.g.rotation.z=Math.sin(tw*1.35+f.ph)*f.a;bfUpdate(dt);
  sakuraGarden.update(dt,tw,world,boy);
  rd.clear();if(!BG_VIDEO)rd.render(bgS,bgC);rd.clearDepth();rd.render(scene,cam)}
 
@@ -2907,9 +2917,61 @@ function itemTick(dt){if(!boy)return;liePose();relaxPose();teaGuestPose();girlSl
  for(let i=hearts.length-1;i>=0;i--){const h=hearts[i],u=h.userData;u.age+=dt;const a=u.age;h.position.set(u.x+Math.sin(a*2.4+u.ph)*.035,u.y+a*(.48+u.lift*2.2),u.z+Math.cos(a*1.6+u.ph)*.03);const fade=a<3?1:Math.max(0,1-(a-3)/.8);h.material.opacity=fade;if(a>=3.8){h.parent&&h.parent.remove(h);h.material.dispose();hearts.splice(i,1)}}
  for(const g of placeById.values()){const p=g.userData.parasol;if(p&&p.userData.tilt){const t=p.userData.tilt;p.rotation.x=t.x+Math.sin(tw*.55)*.02;p.rotation.z=t.z+Math.cos(tw*.4)*.018}if(!g.userData.light)continue;const night=U.uNight.value,flick=.72+.28*Math.sin(tw*8)+.12*Math.sin(tw*21);g.userData.light.intensity=(.2+night*2.6)*flick;g.userData.glow.material.opacity=.12+night*.62;g.userData.flame.scale.y=1.15+.3*Math.sin(tw*12)}}
 
+
+/* ===== 우리 집: isolated interior scene, shared character appearance ===== */
+function focusHomeDoor(n){
+ alignUp(n);
+ const houseUp=cozyHouse.userData.n.clone().applyQuaternion(world.quaternion);
+ world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(TOP,Math.PI-Math.atan2(houseUp.x,houseUp.z))).normalize();
+}
+function initCozyHome(){
+ nightMeteors=YunseulHome.makeMeteors(T,bgS,()=>cam.aspect,()=>U.uNight.value,()=>wxc.storm);
+ const doorNormal=()=>{
+  cozyHouse.updateMatrix();
+  const raw=new T.Vector3(0,0,3.5).applyMatrix4(cozyHouse.matrix).normalize();
+  return safeWalkGoal(raw,.72,raw)||raw;
+ };
+ cozyRoom=YunseulHome.createRoom(T,{
+  canvas:cv,isNight:()=>U.uNight.value>.5,
+  characters:()=>[
+   {object:boy,rig:{body,head:boyHead,legs,arms,shades:boyShades,book:boyBook}},
+   {object:npcs.girl.o,rig:npcs.girl.rig}
+  ],
+  beforeEnter(){
+   cancelAiForInput();if(snack)endSnack();if(rest||cine)endRest();stopLie();
+   if(ride){if(ride.group.userData.pivot)ride.group.userData.pivot.rotation.x=0;ride=null;rideStand()}
+   closeAll();endOrbit();resetGirlActivity();auto=null;boyNav.nav=null;
+   for(const key in keys)keys[key]=false;jend();jh=jv=0;zoomClear();
+   body.position.set(0,0,0);body.rotation.set(0,0,0);arms.concat(legs).forEach(o=>o.rotation.set(0,0,0));
+  },
+  capture(){return {door:doorNormal(),boyVisible:boy.visible,girlVisible:npcs.girl.o.visible}},
+  setInside(inside){modalOpen=inside;boy.visible=!inside;npcs.girl.o.visible=!inside;$('#act').hidden=true;},
+  onExit(saved){
+   auto=null;boyNav.nav=null;for(const key in keys)keys[key]=false;jend();
+   boy.visible=saved?saved.boyVisible:true;npcs.girl.o.visible=saved?saved.girlVisible:true;
+   const n=saved?.door||doorNormal();focusHomeDoor(n);orbitQ.identity();yaw=0;zt=1;zm=1;intro=1;
+   boy.position.set(0,R,0);boy.rotation.set(0,0,0);
+   const girl=npcs.girl;girl.n.copy(safeWalkGoal(randNear(n,.18,.22),.72,n)||n);girl.safeN=girl.n.clone();girl.nav=null;girl.job=null;girl.pose='';
+   basisQ(girl.n,girl.f,girl.o.quaternion);girl.o.position.copy(girl.n).multiplyScalar(R);
+   // Snap the exterior camera to the doorstep, never a leftover cinema/rest shot.
+   look.set(0,2,0);camDir.copy(dir);cameraUp.set(0,1,0);cam.clearViewOffset();
+   resize();clock.getDelta();lastUserActivity=performance.now();toast('우리 집 문 앞에 나왔어요 🏡');
+  }
+ });
+ // Explicit opt-in test adapter only; never enabled on a normal visit.
+ if(new URLSearchParams(location.search).get('homeTest')==='1')window.__yunseulHomeTest={
+  room:cozyRoom,house:cozyHouse,world,cam,open:(sleeping=false)=>cozyRoom.enter({sleeping}),
+  night:()=>{todSet(5,true);todTick(99)},day:()=>{todSet(2,true);todTick(99)},
+  focusHome(){const n=doorNormal();focusHomeDoor(n);intro=1;zt=zm=.65;},
+  housePoint(){cozyHouse.updateWorldMatrix(true,false);const p=new T.Vector3(0,1.2,1.63).applyMatrix4(cozyHouse.matrixWorld).project(cam);return {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2};},
+  get exterior(){const n=TOP.clone().applyQuaternion(world.quaternion.clone().invert());return {boyNormal:n.toArray(),door:doorNormal().toArray(),walkable:isWalkable(n,.72),inside:cozyRoom.isOpen,auto:!!auto,clearance:cozyHouse.userData.siteClearance};},
+  meteors:nightMeteors
+ };
+}
+
 /* ===== 로딩 (끝나면 자동 입장) ===== */
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function showBlock(msg){halted=true;try{if(ac&&ac.suspend)ac.suspend()}catch(e){}const app=document.getElementById('app');if(app)app.hidden=true;const el=document.getElementById('block');if(el){el.hidden=false;el.textContent=msg}}
+function showBlock(msg){if(cozyRoom?.isOpen)cozyRoom.leave();halted=true;try{if(ac&&ac.suspend)ac.suspend()}catch(e){}const app=document.getElementById('app');if(app)app.hidden=true;const el=document.getElementById('block');if(el){el.hidden=false;el.textContent=msg}}
 async function homeGuard(){try{const r=await fetch('/api/home-guard',{cache:'no-store'});if(!r.ok)return false;const j=await r.json();return j.ok===true}catch(e){return false}}
 async function homeGuardRetry(max=5,delay=800){for(let i=0;i<max;i++){if(await homeGuard())return true;if(i<max-1)await sleep(delay)}return false}
 (async()=>{
@@ -2920,7 +2982,8 @@ async function homeGuardRetry(max=5,delay=800){for(let i=0;i<max;i++){if(await h
  const steps=[['글꼴과 바다를 준비하는 중…',async()=>{try{await Promise.race([Promise.all([document.fonts.load('800 40px "Noto Sans KR"','게시판쇼핑센터쇼핑센터문의SHOP'),document.fonts.load('500 16px "Noto Sans KR"','공지사항 NOTICE MAIL'),document.fonts.load('700 16px "Noto Sans KR"','메뉴')]),sleep(3000)])}catch(e){}buildBg()}],
  ['작은 지구를 빚는 중…',buildPlanet],['귀여운 친구를 만드는 중…',buildBoy],['건물과 표지판을 세우는 중…',buildSpots],['나무와 꽃을 심는 중…',buildProps],['친구들을 데려오는 중…',()=>{buildNavigation();buildNpcs()}],['바다 친구들을 부르는 중…',buildSea],['파도 소리를 조율하는 중…',()=>sleep(500)]];
  for(let i=0;i<steps.length;i++){$('#lt').textContent=steps[i][0];await sleep(120);await steps[i][1]();$('#bi').style.width=Math.round((i+1)/steps.length*100)+'%';await sleep(300)}
- resize();frame();applyLook();$('#lt').textContent='파도가 밀려와요 🌊';await sleep(700);
- $('#load').classList.add('off');started=true;lastUserActivity=performance.now();startAudio();setTimeout(()=>$('#hint').style.opacity=0,10000);
+ initCozyHome();resize();frame();applyLook();$('#lt').textContent='파도가 밀려와요 🌊';await sleep(700);
+ $('#load').classList.add('off');started=true;lastUserActivity=performance.now();
+ if(YunseulHome.isBedtime())cozyRoom.enter({sleeping:true});startAudio();setTimeout(()=>$('#hint').style.opacity=0,10000);
 })();
 })();
