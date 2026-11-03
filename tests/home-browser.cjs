@@ -62,17 +62,56 @@ const server = http.createServer((req,res)=>{
   console.log('PASS exit: no scene change until boy reaches door');
   // House clicking from a distance must walk BEFORE asking for confirmation.
   await page.evaluate(()=>{__yunseulHomeTest.world.quaternion.identity();});
-  let confirmations=0;page.on('dialog',async d=>{assert.equal(d.message(),'집 안으로 들어갈까요?');confirmations++;await d.accept();});
+  let confirmations=0;page.on('dialog',async d=>{confirmations++;await d.dismiss();});
   await page.evaluate(()=>__yunseulHomeTest.goHome(false));
   assert(!(await state()).open);
-  await page.waitForFunction(()=>__yunseulHomeTest.room.isOpen,null,{timeout:180000});
-  assert.equal(confirmations,1);assert(!(await state()).sleeping);
-  console.log('PASS exterior manual entry: far-away walk, then confirmation, then interior');
+  await page.waitForSelector('#homeEntryDialog[open]',{timeout:180000});
+  assert(!(await state()).open);assert.equal(confirmations,0);
+  await page.screenshot({path:path.join(root,'home-entry-preview.png')});
+  assert.equal(await page.locator(':focus').getAttribute('value'),'cancel');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>!document.querySelector('#homeEntryDialog').open);
+  assert(!(await state()).open);
+  await page.evaluate(()=>__yunseulHomeTest.entryPrompt());
+  await page.click('.home-entry-cancel');
+  await page.waitForFunction(()=>!document.querySelector('#homeEntryDialog').open);
+  assert(!(await state()).open);
+  await page.evaluate(()=>__yunseulHomeTest.entryPrompt());
+  await page.keyboard.press('Tab');assert.equal(await page.locator(':focus').getAttribute('value'),'enter');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>__yunseulHomeTest.room.isOpen);
+  assert.equal(confirmations,0);assert(!(await state()).sleeping);
+  console.log('PASS exterior manual entry: walk, styled layer, Escape/cancel, keyboard entry, no native confirm');
+  // Observe the actual intermediate stages, not just the final sleeping pose.
+  const sequential=await page.evaluate(()=>{
+    const room=__yunseulHomeTest.room;room.sleep(0);
+    let watch=false,following=false,settling=false,watchTicks=0;
+    for(let i=0;i<2400;i++) {
+      room.tick(1/60);const s=room.state;
+      if(s.stage==='watch'){watch=true;watchTicks++;if(s.boyAwake||!s.girlAwake)throw Error('girl did not watch awake');}
+      if(s.stage==='girl-walk')following=true;
+      if(s.stage==='girl-settle'){settling=true;if(s.boyAwake||!s.girlAwake)throw Error('invalid sequential settling');}
+      if(s.sleeping&&!s.journey)return {watch,following,settling,watchTicks};
+    }
+    throw Error('sequential sleep never completed');
+  });
+  assert(sequential.watch&&sequential.following&&sequential.settling);assert(sequential.watchTicks>=98);
+  console.log('PASS sequential sleep: boy lies first, girl watches 1.65 seconds, walks, then lies down');
+  // Wake during watch and during the girl settling; no stale delayed sleep may fire.
+  for(const stage of ['watch','girl-settle']) {
+    await page.evaluate(stage=>{
+      const r=__yunseulHomeTest.room;r.wake();for(let i=0;i<120;i++)r.tick(1/60);r.sleep(1);
+      for(let i=0;i<2400;i++){r.tick(1/60);if(r.state.stage===stage){r.wake();break;}}
+      for(let i=0;i<240;i++)r.tick(1/60);
+      if(r.state.sleeping||r.state.journey||r.state.characters.some(c=>!c.awake))throw Error('wake interruption failed: '+stage);
+    },stage);
+  }
+  console.log('PASS interrupted sequential sleep and alternate bed: both children remain awake');
   await page.click('#homeExit');await step(25);
   assert(!(await state()).open);
   await page.evaluate(()=>{__yunseulHomeTest.world.quaternion.identity();__yunseulHomeTest.idle();});
   await page.waitForFunction(()=>__yunseulHomeTest.room.isOpen,null,{timeout:180000});
-  assert.equal(confirmations,1);assert.equal((await state()).journey,'bed');
+  assert.equal(confirmations,0);assert.equal((await state()).journey,'bed');
   await step(30);s=await state();assert(s.sleeping&&s.pets.every(p=>p.resting));
   console.log('PASS AI return: exterior idle, auto walk/entry without dialog, doorstep-to-bed sleep');
   // Right-drag at night should never wake the sleepers.
@@ -91,6 +130,26 @@ const server = http.createServer((req,res)=>{
     t.night();
   });
   console.log('PASS meteors spawn at night only');
+  const brightness=await page.evaluate(()=>{
+    const t=__yunseulHomeTest;t.day();t.room.tick(0);const day=t.room.state.lights;
+    t.room.sleep(0);for(let i=0;i<2400;i++)t.room.tick(1/60);
+    const nap=t.room.state.lights;
+    if(t.room.state.characters.some(c=>c.awake))throw Error('day nap incomplete');
+    t.night();t.room.tick(0);const night=t.room.state.lights;
+    t.day();t.room.tick(0);return {day,nap,night};
+  });
+  assert(brightness.nap.ambient>brightness.night.ambient*3);
+  assert(brightness.nap.ambient<brightness.day.ambient);assert(brightness.nap.lamp>0);assert.equal(brightness.night.lamp,0);
+  await page.screenshot({path:path.join(root,'home-day-nap-preview.png')});
+  console.log('PASS daytime nap stays warm and brighter; night sleep remains dim');
+  await page.evaluate(()=>__yunseulHomeTest.room.leave());
+  await page.setViewportSize({width:360,height:740});
+  await page.evaluate(()=>__yunseulHomeTest.entryPrompt());
+  const bounds=await page.locator('#homeEntryDialog').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=360);
+  await page.screenshot({path:path.join(root,'home-entry-mobile-preview.png')});
+  await page.mouse.click(3,3);await page.waitForFunction(()=>!document.querySelector('#homeEntryDialog').open);
+  assert(!(await state()).open);
+  console.log('PASS mobile layer fits viewport and backdrop cancels');
   assert.deepEqual(errors,[]);console.log('PASS no uncaught JavaScript errors');
  } finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});

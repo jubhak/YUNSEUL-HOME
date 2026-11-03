@@ -2942,10 +2942,43 @@ function requestHome(automatic=false){
  auto={n:destination,reach:.045,onArrive(){
    const trip=homeTravel;homeTravel=null;if(!trip)return;
    if(trip.automatic)cozyRoom.enter({autoSleep:true});
-   else if(window.confirm('집 안으로 들어갈까요?'))cozyRoom.enter();
-   else lastUserActivity=performance.now();
+   else showHomeEntry();
  }};
  ring(destination);
+}
+// Native modal dialog supplies focus trapping and makes the outdoor UI inert.
+let homeEntryDialog = null;
+function showHomeEntry(){
+ if(cozyRoom.isOpen || homeEntryDialog?.open)return;
+ if(!homeEntryDialog){
+  const dialog=document.createElement('dialog');dialog.id='homeEntryDialog';
+  dialog.setAttribute('aria-labelledby','homeEntryTitle');
+  dialog.setAttribute('aria-describedby','homeEntryDescription');
+  dialog.innerHTML=`<form method="dialog" class="home-entry-card">
+   <button class="home-entry-close" value="cancel" aria-label="닫기" type="submit">✕</button>
+   <div class="home-entry-art" aria-hidden="true"><span class="home-entry-star">✦</span><span class="home-entry-house">🏡</span><span class="home-entry-spark">✧</span></div>
+   <span class="home-entry-kicker">YUNSEUL · OUR LITTLE HOME</span>
+   <h2 id="homeEntryTitle">집으로 들어갈까요?</h2>
+   <p id="homeEntryDescription">포근한 우리 집에서<br>잠시 쉬어 가요.</p>
+   <div class="home-entry-actions"><button type="submit" value="cancel" class="home-entry-cancel" autofocus>조금 더 놀기</button><button type="submit" value="enter" class="home-entry-enter">집으로 들어가기 <span aria-hidden="true">→</span></button></div>
+   <small>언제든 다시 밖으로 나올 수 있어요</small>
+  </form>`;
+  document.getElementById('app').appendChild(dialog);
+  // Stop gameplay shortcuts; native Tab/Enter/Escape behavior remains intact.
+  dialog.addEventListener('keydown',e=>e.stopPropagation());
+  dialog.addEventListener('keyup',e=>e.stopPropagation());
+  let backdropDown=false;
+  dialog.addEventListener('pointerdown',e=>{backdropDown=e.target===dialog;});
+  dialog.addEventListener('click',e=>{if(backdropDown && e.target===dialog)dialog.close('cancel');backdropDown=false;});
+  dialog.addEventListener('close',()=>{
+   modalOpen=dockOn;lastUserActivity=performance.now();
+   if(dialog.returnValue==='enter' && !cozyRoom.isOpen)cozyRoom.enter();
+  });
+  homeEntryDialog=dialog;
+ }
+ modalOpen=true;auto=null;$('#act').hidden=true;
+ for(const key of Object.keys(keys))keys[key]=false;
+ homeEntryDialog.returnValue='cancel';homeEntryDialog.showModal();
 }
 function initCozyHome(){
  nightMeteors=YunseulHome.makeMeteors(T,bgS,()=>cam.aspect,()=>U.uNight.value,()=>wxc.storm);
@@ -2986,7 +3019,7 @@ function initCozyHome(){
  // Explicit opt-in test adapter only; never enabled on a normal visit.
  if(new URLSearchParams(location.search).get('homeTest')==='1')window.__yunseulHomeTest={
   idle(seconds=61){lastUserActivity=performance.now()-seconds*1000;},
-  goHome:requestHome,
+  goHome:requestHome,entryPrompt:showHomeEntry,
   room:cozyRoom,house:cozyHouse,world,cam,open:(sleeping=false)=>cozyRoom.enter({sleeping}),
   night:()=>{todSet(5,true);todTick(99)},day:()=>{todSet(2,true);todTick(99)},
   focusHome(){const n=doorNormal();focusHomeDoor(n);intro=1;zt=zm=.65;},

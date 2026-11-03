@@ -285,21 +285,37 @@
       // A short, narrow quilt covers only the middle, leaving hands, calves and feet visible.
       blankets.forEach(o => o.position.y = .03);
       lastNight = null; setLighting();
-      status('새근새근… 두 아이와 강아지, 고양이가 달빛 아래 잠들어요. 톡 누르면 일어나요.');
+      status(env.isNight() ? '새근새근… 두 아이와 강아지, 고양이가 달빛 아래 잠들어요. 톡 누르면 일어나요.' : '따스한 햇살 아래 나란히 쉬어요. 톡 누르면 일어나요.');
     }
     function sleepInBed(index = 0) {
       if (!open || transitioning) return;
       activity(); if (sleeping) { wake(); return; }
-      selectedBed = index; target = null; keys.clear(); wakeTime = -1;
+      cancelJourney(); selectedBed = index; target = null; keys.clear(); wakeTime = -1;
       characters.forEach((c, i) => { if (!c.awake || c.rise) stand(c, bedXs[i ? 1-index : index], .1); });
       journey = {kind:'bed', stage:'walk', t:0};
       status('침대로 걸어가요. 강아지와 고양이도 함께 쉬러 와요.');
     }
     function cancelJourney() {
-      if(journey?.kind==='bed' && journey.stage==='settle') {
-        characters.forEach((c,i)=>rise(c,bedXs[i?1-selectedBed:selectedBed],.1));
+      if(journey?.kind==='bed') {
+        characters.forEach((c,i)=>{
+          const settling=journey.stage===(i?'girl-settle':'boy-settle');
+          if(!c.awake || settling) rise(c,bedXs[i?1-selectedBed:selectedBed],.1);
+        });
+        sleeping=false;lastNight=null;
       }
       journey=null;
+    }
+    function startSettling(index) {
+      const c=characters[index];
+      journey.stage=index?'girl-settle':'boy-settle';journey.t=0;
+      journey.from={p:c.root.position.clone(),q:c.root.quaternion.clone()};
+      c.rise=null;
+    }
+    function watchBoy(dt) {
+      const girl=characters[1],boy=characters[0];
+      const angle=Math.atan2(boy.root.position.x-girl.root.position.x,boy.root.position.z-girl.root.position.z);
+      girl.root.rotation.y+=Math.atan2(Math.sin(angle-girl.root.rotation.y),Math.cos(angle-girl.root.rotation.y))*Math.min(1,dt*4);
+      girl.head.rotation.x=T.MathUtils.lerp(girl.head.rotation.x,.10,Math.min(1,dt*3));
     }
     function requestExit() {
       if (!open) return; activity(); cancelJourney();
@@ -352,7 +368,10 @@
     }
     function wake() {
       if (!open || !sleeping || transitioning) return;
+      const girlSettling=journey?.stage==='girl-settle';
       activity(); sleeping = false; journey = null; wakeTime = 0; target = null; lastNight = null;
+      if(girlSettling) { rise(characters[1],bedXs[1-selectedBed],-.10); blankets[1-selectedBed].position.y=0; }
+      characters[1].head.rotation.x=0;
       rise(characters[0], bedXs[selectedBed], -.10); blankets[selectedBed].position.y = 0;
       status('잘 잤어요! 여자아이도 곧 일어나요.');
     }
@@ -393,19 +412,20 @@
       camera.position.copy(center).addScaledVector(direction, fit); camera.lookAt(center); camera.updateProjectionMatrix();
       rearCutaway.forEach(o=>o.visible=direction.z>=0);leftCutaway.forEach(o=>o.visible=direction.x>=0);
       // Night/day visibility is separate from the cutaway visibility.
-      moon.visible=moonHalo.visible=stars.visible=(env.isNight()||sleeping)&&direction.z>=0;
+      moon.visible=moonHalo.visible=stars.visible=env.isNight()&&direction.z>=0;
     }
     function setLighting() {
       const night = env.isNight(), key = night + ':' + sleeping; if (key === lastNight) return; lastNight = key;
-      ambient.color.setHex(sleeping ? 0x91b4ed : 0xffe8c3);
-      ambient.intensity = sleeping ? .20 : night ? .45 : 1.05;
-      lamp.intensity = sleeping ? 0 : night ? .65 : .60;
-      bedsideLight.intensity = sleeping ? 0 : night ? .35 : .2;
-      fill.color.setHex(sleeping ? 0xabcaff : 0xd8e7ff); fill.position.set(1.3,6,-4);
-      fill.intensity = sleeping ? .65 : night ? .40 : .7;
-      room.background.setHex(sleeping ? 0x0b1225 : 0x18253b);
+      const nightSleep = sleeping && night;
+      ambient.color.setHex(nightSleep ? 0x91b4ed : 0xffe8c3);
+      ambient.intensity = sleeping ? (night ? .20 : .78) : night ? .45 : 1.05;
+      lamp.intensity = sleeping ? (night ? 0 : .24) : night ? .65 : .60;
+      bedsideLight.intensity = sleeping ? (night ? 0 : .10) : night ? .35 : .2;
+      fill.color.setHex(nightSleep ? 0xabcaff : 0xd8e7ff); fill.position.set(1.3,6,-4);
+      fill.intensity = sleeping ? (night ? .65 : .68) : night ? .40 : .7;
+      room.background.setHex(nightSleep ? 0x0b1225 : 0x18253b);
       pendant.traverse(o=>{if(o.material?.emissive)o.material.emissiveIntensity=sleeping?0:.22;});
-      skyMat.color.setHex(night ? 0x162548 : 0x8bc9d9); moon.visible = moonHalo.visible = stars.visible = night || sleeping;
+      skyMat.color.setHex(night ? 0x162548 : 0x8bc9d9); moon.visible = moonHalo.visible = stars.visible = night && Math.cos(azimuth)>=0;
       note.dataset.night = night ? 'true' : 'false';
     }
     const ray = new T.Raycaster(), mouse = new T.Vector2(), down = new Map();
@@ -507,20 +527,35 @@
         if(journey?.kind==='bed') {
           const goals=characters.map((c,i)=>new T.Vector3(bedXs[i?1-selectedBed:selectedBed],.08,.1));
           if(journey.stage==='walk') {
-            moving=move(boy,goals[0],dt,2.4); girlMoving=move(girl,goals[1],dt,2.05);
-            if(characters.every((c,i)=>c.root.position.distanceTo(goals[i])<.13)){
-              journey.stage='settle';journey.t=0;
-              journey.from=characters.map(c=>({p:c.root.position.clone(),q:c.root.quaternion.clone()}));
+            moving=move(boy,goals[0],dt,2.4);
+            girlMoving=move(girl,goals[1],dt,1.8);
+            if(!girlMoving)watchBoy(dt);
+            if(boy.root.position.distanceTo(goals[0])<.13)startSettling(0);
+          } else if(journey.stage==='watch') {
+            journey.t+=dt;watchBoy(dt);
+            if(journey.t>=1.65) {
+              journey.stage='girl-walk';journey.t=0;
+              status('남자아이가 잠든 걸 보고 여자아이도 살며시 침대로 가요.');
             }
+          } else if(journey.stage==='girl-walk') {
+            girl.head.rotation.x=0;
+            girlMoving=move(girl,goals[1],dt,1.55);
+            if(girl.root.position.distanceTo(goals[1])<.13)startSettling(1);
           } else {
+            const index=journey.stage==='girl-settle'?1:0,c=characters[index];
+            if(index===0)watchBoy(dt);
             journey.t+=dt;const u=Math.min(1,journey.t/1.1),e=u*u*(3-2*u);
-            characters.forEach((c,i)=>{
-              const from=journey.from[i],dest=new T.Vector3(bedXs[i?1-selectedBed:selectedBed],1.17,-1.90);
-              c.root.position.lerpVectors(from.p,dest,e);c.root.position.y+=Math.sin(u*Math.PI)*.24;
-              c.root.quaternion.copy(from.q).slerp(new T.Quaternion().setFromEuler(new T.Euler(-Math.PI/2,0,0)),e);
-              c.root.scale.copy(c.standScale);c.root.scale.y*=1-.13*e;
-            });
-            if(u===1)finishSleep();
+            const from=journey.from,dest=new T.Vector3(bedXs[index?1-selectedBed:selectedBed],1.17,-1.90);
+            c.root.position.lerpVectors(from.p,dest,e);c.root.position.y+=Math.sin(u*Math.PI)*.24;
+            c.root.quaternion.copy(from.q).slerp(new T.Quaternion().setFromEuler(new T.Euler(-Math.PI/2,0,0)),e);
+            c.root.scale.copy(c.standScale);c.root.scale.y*=1-.13*e;
+            if(u===1) {
+              lie(c,index?1-selectedBed:selectedBed);blankets[index?1-selectedBed:selectedBed].position.y=.03;
+              if(index===0) {
+                sleeping=true;journey.stage='watch';journey.t=0;lastNight=null;setLighting();
+                status('남자아이가 먼저 누웠어요. 여자아이가 곁에서 잠시 지켜봐요.');
+              } else finishSleep();
+            }
           }
         }
         if (!sleeping && journey?.kind!=='bed' && !boy.rise) {
