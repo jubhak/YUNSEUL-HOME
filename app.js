@@ -41,7 +41,7 @@ let modalOpen=false,toastT,auto=null;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)};
 function shopHtml(){return shopPage()}
 function cartBar(){}
-function openSpot(k){if(k==='home'){cozyRoom?.enter();return}if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
+function openSpot(k){if(k==='home'){requestHome();return}if(k==='board'||k==='shop')return openDock(k);if(k==='theater')return openTheater();if(k==='opera')return openOpera();const s=SPOTS[k];$('#mt').textContent=s.icon+' '+s.name;$('#mb').innerHTML=s.html();$('#mb').scrollTop=0;cartBar();modalOpen=true;$('#modal').classList.add('on');$('#act').hidden=true;auto=null}
 function closeModal(){if(!$('#ytlayer').hidden){closeYtLayer();return}if(walletOpen){walletOpen=false;modalOpen=dockOn;$('#modal').classList.remove('on');return}if(dockOn){requestCloseDock();return}modalOpen=false;$('#modal').classList.remove('on');$('#mb').innerHTML=''}
 $('#mc').onclick=closeModal;$('#modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')closeModal()});
 
@@ -1328,7 +1328,7 @@ cv.addEventListener('pointerup',e=>{if(rot&&e.pointerId===rot.id){endOrbit();ret
  v2.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(v2,cam);
  const hit=ray.intersectObjects([...spotObjs,...rides,...placeMeshes,...relaxHits,planet],true)[0];if(!hit){if(rest||cine)endRest();return} let o=hit.object;while(o&&o!==planet&&!o.userData.spot&&!o.userData.ride&&!o.userData.towel&&!o.userData.towelHost&&!o.userData.relax)o=o.parent;if(!o){if(rest||cine)endRest();return}
  if(o.userData.towelHost)o=o.userData.towelHost;
- if(o.userData.spot==='home'){cozyRoom?.enter();return;}
+ if(o.userData.spot==='home'){requestHome();return;}
  if(snack)endSnack();
  if(o.userData.relax==='bed'){if(rest&&rest.kind==='bed'){endRest();return}goBed(o);return}
  if(o.userData.relax==='tea'){if(rest&&rest.kind==='tea'){endRest();return}goTea(o.userData.chair||0);return}
@@ -1485,8 +1485,8 @@ function buildFun(){
  fun.beam=mk2(sx.beam,{blending:T.AdditiveBlending},5);fun.ufo=mk2(sx.ufo,{},6);fun.dino=mk2(sx.dino,{},7);[fun.beam,fun.ufo,fun.dino].forEach(m=>m.visible=false);
 }
 function funUpdate(dt){const a=cam.aspect,c=cur.ct,tn=(m,k=.55)=>m.material.color.setRGB(k+(1-k)*c.x,k+(1-k)*c.y,k+(1-k)*c.z);
- const u=fun.u;
- if(!u.on){nextU-=dt;if(nextU<=0&&wxc.storm<.5){nextU=YunseulHome.skyTiming.ufoWait(rnd2);Object.assign(u,{on:true,t:0,sp:false,side:rnd2()<.5?-1:1,y1:.5+rnd2()*.1});u.x1=u.side*Math.min(a*.8,Math.max(a*.55,.62))}}
+ const u=fun.u,night=U.uNight.value>.6,rate=night?2:1;
+ if(!u.on){nextU-=dt*rate;if(nextU<=0&&wxc.storm<.5){nextU=YunseulHome.skyTiming.ufoWait(rnd2,night)*rate;Object.assign(u,{on:true,t:0,sp:false,side:rnd2()<.5?-1:1,y1:.5+rnd2()*.1});u.x1=u.side*Math.min(a*.8,Math.max(a*.55,.62))}}
  else{u.t+=dt;const t=u.t,W=.3,sd=u.side;let x=u.x1,y=u.y1,sc=1,ba=0,dp=-1;
   if(t<1.6){const e=1-Math.pow(1-t/1.6,3);x=sd*(a+.3)+(u.x1-sd*(a+.3))*e;y=u.y1+.25*(1-e)}
   else if(t<7.2){y+=Math.sin(tw*5)*.006;ba=Math.min(1,(t-1.6)/1)*(t>6.4?Math.max(0,(7.2-t)/.8):1);
@@ -1822,7 +1822,8 @@ function npcUpdate(dt){
  mwT-=dt;if(mwT<=0){mwT=180;say(cat,'야옹~',1.5);meow()}
  /* 여자아이: 남자아이 주변을 맴돈다 */
  g.sp=0;
- if(girlSlide){g.wave=false;g.sp=0}
+ if(homeTravel){EX=[];g.wave=false;g.job=null;g.sp=.58;steer(g,pn,g.sp,dt)}
+ else if(girlSlide){g.wave=false;g.sp=0}
  else if(g.job){g.wave=false;EX=[];relaxMove(g,dt)}
  else{g.t-=dt;
  if(g.st==='pause'&&gp>.75)g.t=0;
@@ -1832,12 +1833,14 @@ function npcUpdate(dt){
  else{steer(g,pn,0,dt);g.wave=gp<.8}
  sep(g,pn,.25,dt)}
  /* 2~3분마다: 강아지가 10초간 여기저기 뛰면 고양이가 쫓아온다 */
- if(started&&chase>0){chase-=dt;if(chase<=0){chase=0;chaseGap=60+rnd2()*60;d.st='orbit';d.stT=5+rnd2()*3;d.od=rnd2()<.5?-1:1;cat.mode='bf';cat.actT=5+rnd2()*5;cat.ct=.4}}
+ if(homeTravel){chase=0;chaseGap=90;}
+ else if(started&&chase>0){chase-=dt;if(chase<=0){chase=0;chaseGap=60+rnd2()*60;d.st='orbit';d.stT=5+rnd2()*3;d.od=rnd2()<.5?-1:1;cat.mode='bf';cat.actT=5+rnd2()*5;cat.ct=.4}}
  else if(started&&chaseGap>0)chaseGap-=dt;
  else if(started&&!d.job&&!cat.job){chase=10+rnd2()*5;chaseGap=60+rnd2()*60;d.job=null;cat.job=null;d.pose='';cat.pose='';d.sit=0;d.lay=0;d.st='dash';d.turn=1.2+rnd2()*.8;d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1);cat.mode='chase';cat.actT=0;cat.ct=0;bark();say(d,'멍!',1.1);meow();say(cat,'야옹!',1.1)}
  /* 강아지: 평소엔 여자아이 주변. 질주 중에는 방향을 자주 꺾는다 */
  d.sp=0;
- if(d.job){EX=[];relaxMove(d,dt);if(d.pose==='sit'){d.st='sit';d.sit=1}}
+ if(homeTravel){EX=[];d.job=null;d.sit=d.lay=0;d.st='orbit';d.sp=.74;steer(d,g.n,d.sp,dt)}
+ else if(d.job){EX=[];relaxMove(d,dt);if(d.pose==='sit'){d.st='sit';d.sit=1}}
  else if(chase>0){d.st='dash';d.turn-=dt;d.sp=1.45;EX=[{n:pn,r:.16}];if(!d.tg)d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1);const left=steer(d,d.tg,d.sp,dt);if(d.turn<=0||left<.2){d.turn=1.2+rnd2()*.8;d.tg=safeWalkGoal(randNear(d.n,.8,1.4),walkRadius(d),d.n)||randNear(d.n,.6,1.1)}sep(d,pn,.14,dt)}
  else{d.stT-=dt;
   if(dg>.75&&d.st!=='orbit'&&d.st!=='run'&&d.st!=='bark'){d.st='orbit';d.stT=3}
@@ -1850,7 +1853,8 @@ function npcUpdate(dt){
    case 'bark':steer(d,pn,0,dt);d.bt-=dt;if(d.bt<=0&&d.barks<(d.meow?2:3)){d.barks++;if(d.meow){d.bt=1.1;d.barkP=.7;meow();say(d,'야옹~',1.5,1.1)}else{d.bt=.6;d.barkP=.22;bark();say(d,'멍멍!',1.5)}}break;
   }
   sep(d,g.n,.16,dt);sep(d,pn,.17,dt)}
- if(cat.job){EX=[];relaxMove(cat,dt)}
+ if(homeTravel){EX=[];cat.job=null;cat.mode='bf';cat.lk=cat.hop=0;cat.sp=.80;steer(cat,d.n,cat.sp,dt)}
+ else if(cat.job){EX=[];relaxMove(cat,dt)}
  else if(cat.mode==='chase'){const da=cat.n.angleTo(d.n);catAim.copy(d.n).addScaledVector(d.f,-.22).normalize();EX=[{n:pn,r:.16},{n:g.n,r:.12}];cat.sp=da>.4?1.42:1.25;steer(cat,da>.35?d.n:catAim,cat.sp,dt);sep(cat,pn,.14,dt);sep(cat,g.n,.11,dt);sep(cat,d.n,.10,dt)}
  else if(window.bfs&&bfs.length){cat.actT-=dt;if(cat.mode!=='lick'&&cat.actT<=0){cat.mode='lick';cat.actT=2.3+rnd2()*1.1}
   if(cat.mode==='lick'){cat.sp=0;if(cat.actT<=0){cat.mode='bf';cat.actT=8+rnd2()*8;cat.ct=.2}}
@@ -2048,6 +2052,7 @@ function cancelAiForInput(){
 }
 function userActivity(e){
  lastUserActivity=performance.now();
+ if(homeTravel && (e.type==='pointerdown'||e.type==='keydown'||e.type==='wheel')){homeTravel=null;auto=null;boyNav.nav=null;}
  if(dockOn||modalOpen)return;
  // Keys used by inputs/UI are not world movement commands.
  const typing=e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]');
@@ -2766,7 +2771,8 @@ function frame(){requestAnimationFrame(frame);if(halted)return;if(theaterOn){clo
  const sw=swell(tw);U.uSw.value=sw;U.uT.value=tw;U.uBow.value=bowNow();audioTick(sw);
  let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),iz=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0);
  if(Math.hypot(jx,jy)>.2){ix=jx;iz=-jy}
- dockAiTick(dt);
+ if((!modalOpen||dockOn) && !editorDirty && !homeTravel && performance.now()-lastUserActivity>=60000 && !MV.some(k=>keys[k]) && Math.hypot(jx,jy)<.2 && !rot && !pts.size) requestHome(true);
+ if(!homeTravel)dockAiTick(dt);
  if(ride&&ride.kind==='swing'&&ride.phase!=='off'&&!dockOn&&(Math.hypot(ix,iz)>.01||Math.hypot(jx,jy)>.2))rideOff();
  if(ride||(rest&&rest.kind==='tea'&&rest.phase==='align'))ix=iz=0;
  else if(auto&&(!modalOpen||dockOn)){tmp.copy(auto.n).applyQuaternion(world.quaternion);const ang=Math.acos(Math.min(1,tmp.y));
@@ -2924,6 +2930,23 @@ function focusHomeDoor(n){
  const houseUp=cozyHouse.userData.n.clone().applyQuaternion(world.quaternion);
  world.quaternion.premultiply(new T.Quaternion().setFromAxisAngle(TOP,Math.PI-Math.atan2(houseUp.x,houseUp.z))).normalize();
 }
+let homeTravel=null;
+let homeDoorNormal=null;
+function requestHome(automatic=false){
+ if(!cozyRoom || cozyRoom.isOpen || homeTravel || (modalOpen&&!dockOn))return;
+ cancelAiForInput();if(snack)endSnack();if(rest||cine)endRest();stopLie();
+ if(ride){if(ride.group.userData.pivot)ride.group.userData.pivot.rotation.x=0;ride=null;rideStand();zoomClear();}
+ dockPlay=null;boyNav.nav=null;
+ homeTravel={automatic};
+ const destination=homeDoorNormal();
+ auto={n:destination,reach:.045,onArrive(){
+   const trip=homeTravel;homeTravel=null;if(!trip)return;
+   if(trip.automatic)cozyRoom.enter({autoSleep:true});
+   else if(window.confirm('집 안으로 들어갈까요?'))cozyRoom.enter();
+   else lastUserActivity=performance.now();
+ }};
+ ring(destination);
+}
 function initCozyHome(){
  nightMeteors=YunseulHome.makeMeteors(T,bgS,()=>cam.aspect,()=>U.uNight.value,()=>wxc.storm);
  const doorNormal=()=>{
@@ -2931,8 +2954,10 @@ function initCozyHome(){
   const raw=new T.Vector3(0,0,3.5).applyMatrix4(cozyHouse.matrix).normalize();
   return safeWalkGoal(raw,.72,raw)||raw;
  };
+ homeDoorNormal=doorNormal;
  cozyRoom=YunseulHome.createRoom(T,{
   canvas:cv,isNight:()=>U.uNight.value>.5,
+  pets:()=>['dog','cat'].map(id=>({object:npcs[id].o,rig:npcs[id].rig})),
   characters:()=>[
    {object:boy,rig:{body,head:boyHead,legs,arms,shades:boyShades,book:boyBook}},
    {object:npcs.girl.o,rig:npcs.girl.rig}
@@ -2940,12 +2965,12 @@ function initCozyHome(){
   beforeEnter(){
    cancelAiForInput();if(snack)endSnack();if(rest||cine)endRest();stopLie();
    if(ride){if(ride.group.userData.pivot)ride.group.userData.pivot.rotation.x=0;ride=null;rideStand()}
-   closeAll();endOrbit();resetGirlActivity();auto=null;boyNav.nav=null;
+   closeAll();endOrbit();resetGirlActivity();homeTravel=null;auto=null;boyNav.nav=null;
    for(const key in keys)keys[key]=false;jend();jh=jv=0;zoomClear();
    body.position.set(0,0,0);body.rotation.set(0,0,0);arms.concat(legs).forEach(o=>o.rotation.set(0,0,0));
   },
   capture(){return {door:doorNormal(),boyVisible:boy.visible,girlVisible:npcs.girl.o.visible}},
-  setInside(inside){modalOpen=inside;boy.visible=!inside;npcs.girl.o.visible=!inside;$('#act').hidden=true;},
+  setInside(inside){modalOpen=inside;boy.visible=!inside;npcs.girl.o.visible=!inside;npcs.dog.o.visible=npcs.cat.o.visible=!inside;$('#act').hidden=true;},
   onExit(saved){
    auto=null;boyNav.nav=null;for(const key in keys)keys[key]=false;jend();
    boy.visible=saved?saved.boyVisible:true;npcs.girl.o.visible=saved?saved.girlVisible:true;
@@ -2960,6 +2985,8 @@ function initCozyHome(){
  });
  // Explicit opt-in test adapter only; never enabled on a normal visit.
  if(new URLSearchParams(location.search).get('homeTest')==='1')window.__yunseulHomeTest={
+  idle(seconds=61){lastUserActivity=performance.now()-seconds*1000;},
+  goHome:requestHome,
   room:cozyRoom,house:cozyHouse,world,cam,open:(sleeping=false)=>cozyRoom.enter({sleeping}),
   night:()=>{todSet(5,true);todTick(99)},day:()=>{todSet(2,true);todTick(99)},
   focusHome(){const n=doorNormal();focusHomeDoor(n);intro=1;zt=zm=.65;},

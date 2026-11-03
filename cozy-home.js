@@ -3,11 +3,15 @@
   'use strict';
   const SKY = Object.freeze({
     ufoInitial: 20, ufoDuration: 8.4, ufoWaitMin: 50, ufoWaitRange: 60,
-    ufoWait(random = Math.random) { return this.ufoWaitMin + random() * this.ufoWaitRange; },
-    // UFO's complete start-to-start interval, halved; do not add meteor lifetime.
-    meteorWait(random = Math.random) { return (this.ufoWait(random) + this.ufoDuration) / 2; }
+    // At night, halve the complete start-to-start interval (including flight).
+    ufoWait(random = Math.random, night = false) {
+      const wait = this.ufoWaitMin + random() * this.ufoWaitRange;
+      return night ? (wait + this.ufoDuration) / 2 - this.ufoDuration : wait;
+    },
+    meteorProbability: .30,
+    meteorWait(random = Math.random) { return (this.ufoWait(random, true) + this.ufoDuration) / this.meteorProbability; }
   });
-  function isBedtime(date = new Date()) { return date.getHours() < 6; }
+  function isBedtime(date = new Date()) { return date.getHours() < 7; }
   function chooseSite(T, obstacles, radius, footprint = 2.35) {
     let best = null, clearance = -Infinity;
     // Deterministic Fibonacci lattice, including quiet areas on the far side.
@@ -103,13 +107,13 @@
     const tail = new T.Mesh(tailGeo, tailMaterial); tail.frustumCulled = false; tail.renderOrder = 8; root.add(tail);
     const glitter = [];
     for (let i = 0; i < 7; i++) { const p = new T.Sprite(new T.SpriteMaterial({ map: texture, transparent: true, blending: T.AdditiveBlending, depthTest: false, depthWrite: false })); p.scale.set(.025, .025, 1); root.add(p); glitter.push(p); }
-    let wait = SKY.ufoInitial / 2, age = 0, active = false, enabled = false, count = 0, startX = 0, startY = 0, side = 1;
+    let wait = SKY.meteorWait(), age = 0, active = false, enabled = false, count = 0, startX = 0, startY = 0, side = 1;
     function spawn() { age = 0; active = true; count++; root.visible = true; side = Math.random() < .5 ? -1 : 1; startX = -side * aspect() * (.3 + Math.random() * .4); startY = .79 + Math.random() * .12; }
     return {
       update(dt) {
         const visible = night() > .6 && weather() < .5;
         if (!visible) { root.visible = false; active = false; enabled = false; return; }
-        if (!enabled) { wait = SKY.ufoInitial / 2; enabled = true; }
+        if (!enabled) { wait = SKY.meteorWait(); enabled = true; }
         wait -= dt;
         if (wait <= 0) { spawn(); wait += SKY.meteorWait(); }
         if (!active) return;
@@ -133,7 +137,11 @@
     const room = new T.Scene(); room.background = new T.Color(0x18253b);
     const camera = new T.PerspectiveCamera(38, 1, .1, 120);
     let open = false, sleeping = false, wakeTime = -1, elapsed = 0, selectedBed = 0, lastNight = null, target = null, transitioning = false;
-    let characters = [], owner = null, hiddenHud = [], returnFocus = null;
+    let characters = [], pets = [], owner = null, hiddenHud = [], returnFocus = null;
+    let journey = null, idleSince = performance.now(), orbit = null, azimuth = Math.atan2(12, 19), elevation = .525, wasBedtime = isBedtime();
+    const IDLE_MS = 60000;
+    function activity() { if (open) idleSince = performance.now(); }
+    for (const type of ['pointerdown', 'pointerup', 'pointermove', 'wheel', 'keydown', 'keyup']) addEventListener(type, activity, {capture:true, passive:true});
     const group = new T.Group(); room.add(group);
     const cream = mat(0xffefce), timber = mat(0xbb8250), wall = mat(0xf4ba57), floor = mat(0xa4c9b1), white = mat(0xfff8e8);
     const ambient = new T.HemisphereLight(0xffe8c3, 0xa3b5a7, 1); room.add(ambient);
@@ -181,10 +189,10 @@
       box(g, 1.96, .32, 3.36, white, 0, .82, 0);
       const pillow = ball(g, .5, white, 0, 1.04, -1.13, 1.63, .21, .66); pillow.name = 'soft-pillow';
       const blanket = new T.Group(); g.add(blanket); blankets.push(blanket);
-      box(blanket, 2.02, .13, 2.17, quilt, 0, 1.045, .46);
-      box(blanket, 2.02, .04, .32, white, 0, 1.13, -.52);
-      for (let a = 0; a < 5; a++) for (let j = 0; j < 5; j++) {
-        const patch = box(blanket, .30, .014, .28, mat(i ? 0xf1c2ca : 0xb5d6df), -.78 + a * .39, 1.12, -.30 + j * .40); patch.rotation.y = (a + j) % 2 ? .12 : 0;
+      box(blanket, .76, .10, .72, quilt, 0, 1.39, -.02);
+      box(blanket, .78, .035, .14, white, 0, 1.45, -.33);
+      for (let a = 0; a < 3; a++) for (let j = 0; j < 3; j++) {
+        const patch = box(blanket, .20, .014, .18, mat(i ? 0xf1c2ca : 0xb5d6df), -.26 + a * .26, 1.448, -.25 + j * .23); patch.rotation.y = (a + j) % 2 ? .12 : 0;
       }
     }
     // A broad, uncluttered aisle around the beds and a tiny nightstand.
@@ -222,12 +230,15 @@
     // Fine, warm wall decoration without asset downloads.
     const buntingColors = [0xdf8b83, 0xa6b8a1, 0xecc876, 0x9eb4c5];
     for (let i = 0; i < 9; i++) { const x = -2.4 + i * .6, y = 5.48 - Math.sin(i / 8 * Math.PI) * .16; const pennant = mesh(group, new T.ConeGeometry(.12, .25, 3), mat(buntingColors[i % 4]), x, y, -5.82); pennant.rotation.z = Math.PI; }
+    // Keep the dollhouse cutaway readable when orbiting behind either wall.
+    const rearCutaway=group.children.filter(o=>o.position.z < -5.35 && o.position.y > .12);
+    const leftCutaway=group.children.filter(o=>o.position.x < -6.7 && o.position.y > .12);
     const panel = document.createElement('section'); panel.id = 'cozyHome'; panel.hidden = true;
     panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-labelledby', 'homeTitle');
     panel.innerHTML = '<header class="home-bar"><div><span class="home-kicker">YUNSEUL · OUR LITTLE HOME</span><h2 id="homeTitle">달빛이 쉬어 가는 집</h2></div><button id="homeExit" type="button">↩ 집 밖으로</button></header><div class="home-note" id="homeNote" role="status" aria-live="polite"></div><div class="home-actions"><button type="button" data-home-bed="0">🛏 남자아이 침대</button><button type="button" data-home-bed="1">🛏 여자아이 침대</button><button type="button" id="homeWake">☀ 일어나기</button></div>';
     document.getElementById('app').appendChild(panel);
     const note = panel.querySelector('#homeNote'), exitButton = panel.querySelector('#homeExit'), wakeButton = panel.querySelector('#homeWake');
-    exitButton.onclick = leave;
+    exitButton.onclick = requestExit;
     panel.querySelectorAll('[data-home-bed]').forEach(button => button.onclick = () => sleepInBed(Number(button.dataset.homeBed)));
     wakeButton.onclick = wake;
     // Blank parts of the header/footer also count as a wake-up tap.
@@ -246,57 +257,129 @@
         const pts = [new T.Vector3(s * .20 - .07, -.045, .594), new T.Vector3(s * .20, -.071, .604), new T.Vector3(s * .20 + .07, -.045, .594)];
         const line = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 12, .013, 5, false), mat(0x443029)); line.visible = false; c.head.add(line); c.closed.push(line);
       });
-      group.add(copy); return c;
+      c.standScale = copy.scale.clone(); group.add(copy); return c;
     }
     function updateCharacters() {
       // Re-clone on entry so any clothing purchased outdoors is preserved.
       characters.forEach(c => { group.remove(c.root); c.closed.forEach(o => { o.geometry.dispose(); o.material.dispose(); }); }); characters = env.characters().map(x => makeCharacter(x.object, x.rig));
     }
     function poseEyes(c, closed) { c.eyes.forEach(o => o.visible = !closed); c.closed.forEach(o => o.visible = closed); }
-    function stand(c, x, z) { c.rise = null; c.awake = true; c.root.position.set(x, .08, z); c.root.rotation.set(0, 0, 0); poseEyes(c, false); c.legs.concat(c.arms).forEach(o => o.rotation.set(0, 0, 0)); }
+    function stand(c, x, z) { c.root.scale.copy(c.standScale); c.rise = null; c.awake = true; c.root.position.set(x, .08, z); c.root.rotation.set(0, 0, 0); poseEyes(c, false); c.legs.concat(c.arms).forEach(o => o.rotation.set(0, 0, 0)); }
     function rise(c, x, z) {
       const from = c.root.position.clone(), rotation = c.root.quaternion.clone();
       stand(c, x, z); c.rise = { from, rotation, to: c.root.position.clone(), t: 0 };
       c.root.position.copy(from); c.root.quaternion.copy(rotation);
     }
-    function lie(c, bedIndex) { c.rise = null; c.awake = false; c.root.position.set(bedXs[bedIndex], 1.04, -1.58); c.root.rotation.set(-Math.PI / 2, 0, 0); poseEyes(c, true); c.legs.concat(c.arms).forEach(o => o.rotation.set(0, 0, 0)); }
-    function sleepInBed(index) {
+    function lie(c, bedIndex) {
+      c.rise = null; c.awake = false;
+      // Local +Z faces UP after this rotation; keep the back above the mattress.
+      c.root.scale.copy(c.standScale); c.root.scale.y *= .87;
+      c.root.position.set(bedXs[bedIndex], 1.17, -1.90);
+      c.root.rotation.set(-Math.PI / 2, 0, 0); poseEyes(c, true);
+      c.legs.forEach((o, i) => o.rotation.set(-.08, 0, i ? -.13 : .13));
+      c.arms.forEach((o, i) => o.rotation.set(-.12, 0, i ? -.32 : .32));
+    }
+    function finishSleep() {
+      sleeping = true; journey = null; wakeTime = -1; target = null;
+      lie(characters[0], selectedBed); lie(characters[1], 1 - selectedBed);
+      // A short, narrow quilt covers only the middle, leaving hands, calves and feet visible.
+      blankets.forEach(o => o.position.y = .03);
+      lastNight = null; setLighting();
+      status('새근새근… 두 아이와 강아지, 고양이가 달빛 아래 잠들어요. 톡 누르면 일어나요.');
+    }
+    function sleepInBed(index = 0) {
       if (!open || transitioning) return;
-      if (sleeping) { wake(); return; }
-      selectedBed = index; sleeping = true; wakeTime = -1; target = null;
-      lie(characters[0], index); lie(characters[1], 1 - index);
-      blankets.forEach(o => o.position.y = .19);
-      status('새근새근… 두 아이가 잠들었어요. 방 안을 톡 누르면 일어나요.');
+      activity(); if (sleeping) { wake(); return; }
+      selectedBed = index; target = null; keys.clear(); wakeTime = -1;
+      characters.forEach((c, i) => { if (!c.awake || c.rise) stand(c, bedXs[i ? 1-index : index], .1); });
+      journey = {kind:'bed', stage:'walk', t:0};
+      status('침대로 걸어가요. 강아지와 고양이도 함께 쉬러 와요.');
+    }
+    function cancelJourney() {
+      if(journey?.kind==='bed' && journey.stage==='settle') {
+        characters.forEach((c,i)=>rise(c,bedXs[i?1-selectedBed:selectedBed],.1));
+      }
+      journey=null;
+    }
+    function requestExit() {
+      if (!open) return; activity(); cancelJourney();
+      if (sleeping) wake();
+      journey = {kind:'exit'}; target = new T.Vector3(-5.35, .08, -4.9); keys.clear();
+      status('문 앞으로 걸어가서 밖으로 나가요.');
+    }
+    function updatePets() {
+      pets.forEach(p => {group.remove(p.root); p.closed.forEach(o => {o.geometry.dispose(); o.material.dispose();});});
+      pets = (env.pets ? env.pets() : []).map((source, i) => {
+        const root = source.object.clone(true), originals = [], copies = [], map = new Map();
+        source.object.traverse(o => originals.push(o)); root.traverse(o => copies.push(o)); originals.forEach((o,j)=>map.set(o,copies[j]));
+        const rig = source.rig, head = map.get(rig.head), body = map.get(rig.body), legs = rig.legs.map(o=>map.get(o));
+        root.visible = false; root.rotation.set(0,0,0); root.position.set(-5.35,.08,-5.25); group.add(root);
+        body.position.set(0,0,0); body.rotation.set(0,0,0); legs.forEach(o=>o.rotation.set(0,0,0));
+        if(rig.jaw) map.get(rig.jaw).rotation.set(0,0,0);
+        if(rig.tongue) map.get(rig.tongue).visible = false;
+        const eyes = head.children.filter(o => o.isMesh && o.material.isMeshBasicMaterial && o.geometry.type==='SphereGeometry' && o.geometry.parameters.radius<=.055 && o.position.z>.14 && Math.abs(o.position.x)<.13);
+        const closed = [-1,1].map(side=>{
+          const z=i ? .19 : .23, x=i ? .072 : .1, y=i ? .015 : .068;
+          const curve=new T.CatmullRomCurve3([new T.Vector3(side*x-.035,y,z),new T.Vector3(side*x,y-.016,z+.005),new T.Vector3(side*x+.035,y,z)]);
+          const o=new T.Mesh(new T.TubeGeometry(curve,8,.009,4,false),mat(0x352c38)); o.visible=false; head.add(o); return o;
+        });
+        return {root,body,head,legs,eyes,closed,tail:map.get(rig.tail),resting:false,delay:.45+i*.65};
+      });
+    }
+    function tickPets(dt) {
+      pets.forEach((p,i)=>{
+        if (elapsed < p.delay) return;
+        p.root.visible = true;
+        const resting = sleeping;
+        const goal = resting ? new T.Vector3(2.55+i*.82,.08,.25+i*.6) : characters[0].root.position.clone().add(new T.Vector3(1.4+i*.65,0,.9));
+        goal.x=T.MathUtils.clamp(goal.x,-5.9,5.9); goal.z=T.MathUtils.clamp(goal.z,-4.9,5);
+        if(blocked(goal.x,goal.z))goal.z=.2;
+        const distance = Math.hypot(goal.x-p.root.position.x,goal.z-p.root.position.z);
+        if(resting && distance<.16) {
+          p.resting=true; p.root.rotation.set(0,i?-.8:.5,i?-1.1:1.25);
+          p.root.position.y=i?.22:.30; p.body.scale.y=.78;
+          p.body.position.y=Math.sin(elapsed*1.6+i)*.008;
+          p.head.rotation.x=.28; p.legs.forEach((o,j)=>o.rotation.x=j%2?.9:-.8);
+          if(p.tail)p.tail.rotation.x=-1.5;
+        } else {
+          p.resting=false; p.root.position.y=.08; p.root.rotation.z=0; p.body.scale.y=1; p.head.rotation.x=0;
+          const moving=move(p,goal,dt,2.35+i*.2);
+          p.legs.forEach((o,j)=>o.rotation.x=moving?Math.sin(elapsed*11+j%2*Math.PI)*.5:0);
+          if(p.tail)p.tail.rotation.z=Math.sin(elapsed*5)*.25;
+        }
+        p.eyes.forEach(o=>o.visible=!p.resting);p.closed.forEach(o=>o.visible=p.resting);
+      });
     }
     function wake() {
       if (!open || !sleeping || transitioning) return;
-      sleeping = false; wakeTime = 0; target = null;
+      activity(); sleeping = false; journey = null; wakeTime = 0; target = null; lastNight = null;
       rise(characters[0], bedXs[selectedBed], -.10); blankets[selectedBed].position.y = 0;
       status('잘 잤어요! 여자아이도 곧 일어나요.');
     }
     function enter(options = {}) {
       if (open) return;
       env.beforeEnter(); owner = env.capture(); returnFocus = document.activeElement;
-      updateCharacters(); open = true; sleeping = false; elapsed = 0; wakeTime = -1; target = null; transitioning = false;
+      updateCharacters(); updatePets(); open = true; sleeping = false; elapsed = 0; wakeTime = -1; target = null; transitioning = false; journey = null; idleSince = performance.now(); wasBedtime=isBedtime();
       hiddenHud = [];
       document.querySelectorAll('#app > *').forEach(el => { if (['c', 'cozyHome', 'toast', 'load'].includes(el.id) || el.tagName === 'SCRIPT') return; hiddenHud.push([el, el.style.visibility]); el.style.visibility = 'hidden'; });
       panel.hidden = false; document.body.classList.add('inside-cozy-home'); env.setInside(true); env.canvas.setAttribute('aria-label', '집 내부. 침대를 누르면 잠들고, 방문을 누르면 밖으로 나가요.');
-      stand(characters[0], -.7, 1.4); stand(characters[1], .7, 1.7); blankets.forEach(o => o.position.y = 0);
+      stand(characters[0], -5.35, -4.9); stand(characters[1], -5.65, -4.25); blankets.forEach(o => o.position.y = 0);
       status('넓은 우리 방에 어서 와요. 바닥을 누르면 걷고, 침대를 누르면 잠들어요.');
       lastNight = null; setLighting(); resize();
-      if (options.sleeping) sleepInBed(0);
+      if (options.sleeping) { selectedBed=0; finishSleep(); pets.forEach((p,i)=>{p.delay=0; p.root.position.set(2.55+i*.82,.08,.25+i*.6);}); tickPets(0); }
+      else if (options.autoSleep) sleepInBed(0);
       exitButton.focus({ preventScroll: true });
     }
     function leave() {
       if (!open) return;
-      open = false; keys.clear(); down.clear(); panel.hidden = true; document.body.classList.remove('inside-cozy-home');
+      open = false; journey = null; orbit = null; keys.clear(); down.clear(); panel.hidden = true; document.body.classList.remove('inside-cozy-home');
       hiddenHud.forEach(([el, visibility]) => el.style.visibility = visibility); hiddenHud = [];
       env.canvas.removeAttribute('aria-label'); env.setInside(false); env.onExit(owner); owner = null;
       if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
     }
     function resize() {
       camera.aspect = innerWidth / innerHeight;
-      const center = new T.Vector3(0, 1.65, -.2), direction = new T.Vector3(12, 13, 19).normalize();
+      const center = new T.Vector3(0, 1.65, -.2), direction = new T.Vector3(Math.sin(azimuth)*Math.cos(elevation), Math.sin(elevation), Math.cos(azimuth)*Math.cos(elevation));
       // Solve all room corners in the camera basis, including their depth.
       // A fixed distance/aspect shortcut clips the near corners on narrow phones.
       const right = new T.Vector3().crossVectors(new T.Vector3(0, 1, 0), direction).normalize();
@@ -308,11 +391,21 @@
         fit = Math.max(fit, depth + Math.abs(p.dot(right)) / tanX, depth + Math.abs(p.dot(up)) / tanY);
       }
       camera.position.copy(center).addScaledVector(direction, fit); camera.lookAt(center); camera.updateProjectionMatrix();
+      rearCutaway.forEach(o=>o.visible=direction.z>=0);leftCutaway.forEach(o=>o.visible=direction.x>=0);
+      // Night/day visibility is separate from the cutaway visibility.
+      moon.visible=moonHalo.visible=stars.visible=(env.isNight()||sleeping)&&direction.z>=0;
     }
     function setLighting() {
-      const night = env.isNight(); if (night === lastNight) return; lastNight = night;
-      ambient.intensity = night ? .62 : 1.05; lamp.intensity = night ? .95 : .60; bedsideLight.intensity = night ? .65 : .2; fill.intensity = night ? .30 : .7;
-      skyMat.color.setHex(night ? 0x162548 : 0x8bc9d9); moon.visible = moonHalo.visible = stars.visible = night;
+      const night = env.isNight(), key = night + ':' + sleeping; if (key === lastNight) return; lastNight = key;
+      ambient.color.setHex(sleeping ? 0x91b4ed : 0xffe8c3);
+      ambient.intensity = sleeping ? .20 : night ? .45 : 1.05;
+      lamp.intensity = sleeping ? 0 : night ? .65 : .60;
+      bedsideLight.intensity = sleeping ? 0 : night ? .35 : .2;
+      fill.color.setHex(sleeping ? 0xabcaff : 0xd8e7ff); fill.position.set(1.3,6,-4);
+      fill.intensity = sleeping ? .65 : night ? .40 : .7;
+      room.background.setHex(sleeping ? 0x0b1225 : 0x18253b);
+      pendant.traverse(o=>{if(o.material?.emissive)o.material.emissiveIntensity=sleeping?0:.22;});
+      skyMat.color.setHex(night ? 0x162548 : 0x8bc9d9); moon.visible = moonHalo.visible = stars.visible = night || sleeping;
       note.dataset.night = night ? 'true' : 'false';
     }
     const ray = new T.Raycaster(), mouse = new T.Vector2(), down = new Map();
@@ -322,18 +415,31 @@
     }
     function groundGoal(point) {
       const p = new T.Vector3(T.MathUtils.clamp(point.x, -6.0, 6), .08, T.MathUtils.clamp(point.z, -5.0, 5.3));
-      if (!blocked(p.x, p.z)) target = p;
+      if (!blocked(p.x, p.z)) { cancelJourney(); target = p; }
     }
-    env.canvas.addEventListener('pointerdown', e => { if (!open) return; e.stopImmediatePropagation(); if (e.button !== 0) return; down.set(e.pointerId, [e.clientX, e.clientY]); try { env.canvas.setPointerCapture(e.pointerId); } catch (_) {} }, true);
-    env.canvas.addEventListener('pointermove', e => { if (open) e.stopImmediatePropagation(); }, true);
-    env.canvas.addEventListener('pointercancel', e => { down.delete(e.pointerId); }, true);
+    env.canvas.addEventListener('pointerdown', e => {
+      if (!open) return; e.stopImmediatePropagation();
+      if (e.button === 2) orbit={id:e.pointerId,x:e.clientX,y:e.clientY};
+      else if(e.button===0) down.set(e.pointerId,[e.clientX,e.clientY]);
+      try { env.canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    }, true);
+    env.canvas.addEventListener('pointermove', e => {
+      if(!open)return;e.stopImmediatePropagation();
+      if(orbit && e.pointerId===orbit.id){
+        if(!(e.buttons&2)){orbit=null;return;}
+        azimuth-=(e.clientX-orbit.x)*.007;
+        elevation=T.MathUtils.clamp(elevation+(e.clientY-orbit.y)*.005,.20,1.20);
+        orbit.x=e.clientX;orbit.y=e.clientY;resize();
+      }
+    }, true);
+    env.canvas.addEventListener('pointercancel', e => { down.delete(e.pointerId); orbit=null; }, true);
     env.canvas.addEventListener('pointerup', e => {
-      if (!open) return; e.stopImmediatePropagation(); const start = down.get(e.pointerId); down.delete(e.pointerId);
+      if (!open) return; e.stopImmediatePropagation(); if(e.button===2){orbit=null;return;} const start = down.get(e.pointerId); down.delete(e.pointerId);
       if (!start || Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 12) return;
       mouse.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(mouse, camera);
       const hit = ray.intersectObjects([door, ...beds], true)[0]; let hitDoor = false, bedIndex = -1;
       if (hit) { let o = hit.object; while (o && o !== group) { if (o === door) hitDoor = true; const i = beds.indexOf(o); if (i >= 0) bedIndex = i; o = o.parent; } }
-      if (hitDoor) { leave(); return; }
+      if (hitDoor) { requestExit(); return; }
       if (sleeping) { wake(); return; }
       if (bedIndex >= 0) { sleepInBed(bedIndex); return; }
       const p = new T.Vector3(); if (ray.ray.intersectPlane(floorPlane, p)) groundGoal(p);
@@ -344,15 +450,35 @@
     addEventListener('keydown', e => {
       if (!open) return; e.stopImmediatePropagation();
       const key = e.key.toLowerCase();
-      if (key === 'escape') { e.preventDefault(); leave(); return; }
+      if (key === 'escape') { e.preventDefault(); requestExit(); return; }
       if (key === 'tab') { const buttons = [...panel.querySelectorAll('button')].filter(b => !b.hidden); const i = buttons.indexOf(document.activeElement); e.preventDefault(); buttons[(i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus(); return; }
-      if (movementKeys.has(key) || key === ' ') { e.preventDefault(); if (sleeping) wake(); if (movementKeys.has(key)) { keys.add(key); target = null; } }
+      if (movementKeys.has(key) || key === ' ') { e.preventDefault(); if (sleeping) wake(); if (movementKeys.has(key)) { keys.add(key); target = null; cancelJourney(); } }
     }, true);
     addEventListener('keyup', e => { keys.delete(e.key.toLowerCase()); if (open) e.stopImmediatePropagation(); }, true);
-    addEventListener('blur', () => { keys.clear(); down.clear(); });
+    addEventListener('blur', () => { keys.clear(); down.clear(); orbit=null; });
     addEventListener('resize', resize);
+    function waypoint(c, goal) {
+      const start=c.root.position;
+      const clear=(a,b)=>{const n=Math.ceil(a.distanceTo(b)/.16);for(let i=1;i<=n;i++){const p=a.clone().lerp(b,i/n);if(blocked(p.x,p.z))return false;}return true;};
+      if(clear(start,goal))return goal;
+      if(c.route && c.route.goal.distanceTo(goal)<.25){
+        while(c.route.points.length && start.distanceTo(c.route.points[0])<.18)c.route.points.shift();
+        if(c.route.points.length)return c.route.points[0];
+      }
+      const step=.4, key=(x,z)=>x+','+z, point=(x,z)=>new T.Vector3(-6+x*step,.08,-5+z*step);
+      const sx=Math.round((start.x+6)/step),sz=Math.round((start.z+5)/step),gx=Math.round((goal.x+6)/step),gz=Math.round((goal.z+5)/step);
+      const queue=[[sx,sz]],seen=new Map([[key(sx,sz),null]]);let end=null;
+      for(let h=0;h<queue.length;h++){
+        const [x,z]=queue[h],p=point(x,z);if(Math.abs(x-gx)+Math.abs(z-gz)<=1 && clear(p,goal)){end=[x,z];break;}
+        for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,nz=z+dz,k=key(nx,nz),v=point(nx,nz);if(nx<0||nx>30||nz<0||nz>25||seen.has(k)||blocked(v.x,v.z)||!clear(p,v))continue;seen.set(k,[x,z]);queue.push([nx,nz]);}
+      }
+      if(!end)return goal;
+      const points=[goal.clone()];for(let node=end;node;node=seen.get(key(...node)))points.unshift(point(...node));
+      while(points.length && start.distanceTo(points[0])<.25)points.shift();
+      c.route={goal:goal.clone(),points};return points[0]||goal;
+    }
     function move(c, goal, dt, speed) {
-      const d = goal.clone().sub(c.root.position); d.y = 0; const length = d.length();
+      const d = waypoint(c, goal).clone().sub(c.root.position); d.y = 0; const length = d.length();
       if (length < .09) return false;
       d.multiplyScalar(Math.min(speed * dt, length) / length);
       const x = c.root.position.x + d.x, z = c.root.position.z + d.z;
@@ -369,22 +495,47 @@
     const api = {
       enter, leave, wake, sleep: sleepInBed, resize,
       tick(dt) {
-        if (!open) return; elapsed += dt; setLighting();
+        if (!open) return; elapsed += dt;
+        const bedtime=isBedtime();if(wasBedtime&&!bedtime&&sleeping)wake();wasBedtime=bedtime;
+        setLighting();
+        if(!sleeping && !journey && performance.now()-idleSince>=IDLE_MS && !keys.size && !down.size && !orbit) sleepInBed(0);
         if (wakeTime >= 0) { wakeTime += dt; if (wakeTime >= .8 && !characters[1].awake) { rise(characters[1], bedXs[1 - selectedBed], -.1); blankets[1 - selectedBed].position.y = 0; status('같이 놀아요. 여자아이가 남자아이 곁을 맴돌아요.'); } }
         const boy = characters[0], girl = characters[1];
         const ix = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
         const iz = (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0);
-        let moving = false;
-        if (!sleeping && !boy.rise) {
-          if (ix || iz) { const delta = new T.Vector3(ix, 0, iz).normalize(); const dest = boy.root.position.clone().addScaledVector(delta, .4); dest.x = T.MathUtils.clamp(dest.x, -6, 6); dest.z = T.MathUtils.clamp(dest.z, -5, 5.3); moving = move(boy, dest, dt, 2.4); }
-          else if (target) { moving = move(boy, target, dt, 2.4); if (boy.root.position.distanceTo(target) < .12 || !moving) target = null; }
+        let moving = false, girlMoving = false;
+        if(journey?.kind==='bed') {
+          const goals=characters.map((c,i)=>new T.Vector3(bedXs[i?1-selectedBed:selectedBed],.08,.1));
+          if(journey.stage==='walk') {
+            moving=move(boy,goals[0],dt,2.4); girlMoving=move(girl,goals[1],dt,2.05);
+            if(characters.every((c,i)=>c.root.position.distanceTo(goals[i])<.13)){
+              journey.stage='settle';journey.t=0;
+              journey.from=characters.map(c=>({p:c.root.position.clone(),q:c.root.quaternion.clone()}));
+            }
+          } else {
+            journey.t+=dt;const u=Math.min(1,journey.t/1.1),e=u*u*(3-2*u);
+            characters.forEach((c,i)=>{
+              const from=journey.from[i],dest=new T.Vector3(bedXs[i?1-selectedBed:selectedBed],1.17,-1.90);
+              c.root.position.lerpVectors(from.p,dest,e);c.root.position.y+=Math.sin(u*Math.PI)*.24;
+              c.root.quaternion.copy(from.q).slerp(new T.Quaternion().setFromEuler(new T.Euler(-Math.PI/2,0,0)),e);
+              c.root.scale.copy(c.standScale);c.root.scale.y*=1-.13*e;
+            });
+            if(u===1)finishSleep();
+          }
         }
-        let girlMoving = false;
-        if (!sleeping && girl.awake && !girl.rise) {
+        if (!sleeping && journey?.kind!=='bed' && !boy.rise) {
+          if (ix || iz) { const delta = new T.Vector3(ix, 0, iz).normalize(); const dest = boy.root.position.clone().addScaledVector(delta, .4); dest.x = T.MathUtils.clamp(dest.x, -6, 6); dest.z = T.MathUtils.clamp(dest.z, -5, 5.3); moving = move(boy, dest, dt, 2.4); }
+          else if (target) { moving = move(boy, target, dt, 2.4); if (boy.root.position.distanceTo(target) < .12) {
+            target = null; if(journey?.kind==='exit'){leave();return;}
+          } }
+        }
+        if (!sleeping && journey?.kind!=='bed' && girl.awake && !girl.rise) {
           const a = elapsed * .65, goal = boy.root.position.clone().add(new T.Vector3(Math.cos(a) * 1.16, 0, Math.sin(a) * .85));
           goal.x = T.MathUtils.clamp(goal.x, -5.9, 5.9); goal.z = T.MathUtils.clamp(goal.z, -5, 5.2);
           if (blocked(goal.x, goal.z)) goal.z = .1;
-          girlMoving = move(girl, goal, dt, 2.65);
+          // A companion lingers and then changes her own goal, rather than mirroring clicks.
+          if(!girl.orbitGoal || elapsed>(girl.orbitUntil||0) || girl.root.position.distanceTo(girl.orbitGoal)<.18){girl.orbitGoal=goal;girl.orbitUntil=elapsed+2.2;}
+          girlMoving = move(girl, girl.orbitGoal, dt, 1.55);
         }
         characters.forEach((c, i) => {
           if (c.rise) {
@@ -393,16 +544,17 @@
             c.root.quaternion.copy(r.rotation).slerp(new T.Quaternion(), e); c.body.position.y = 0;
             if (u >= 1) c.rise = null; return;
           }
-          if (!c.awake) { c.root.position.y = 1.04 + Math.sin(elapsed * 1.7 + i) * .018; c.body.position.y = 0; return; }
+          if (!c.awake) { c.root.position.y = 1.17 + Math.sin(elapsed * 1.7 + i) * .018; c.body.position.y = 0; return; }
           const mv = i ? girlMoving : moving; const wave = Math.sin(elapsed * 9 + i) * (mv ? .55 : 0);
           c.legs[0].rotation.x = wave; c.legs[1].rotation.x = -wave; c.arms[0].rotation.x = -wave * .7; c.arms[1].rotation.x = wave * .7; c.body.position.y = mv ? Math.abs(wave) * .065 : Math.sin(elapsed * 2) * .012;
         });
         sleepingSymbols.forEach((o, i) => { const c = characters[Math.floor(i / 3)], u = (elapsed * .28 + (i % 3) / 3) % 1; o.visible = !c.awake; const bi = Math.floor(i / 3) ? 1 - selectedBed : selectedBed; o.position.set(bedXs[bi] + .5 + u * .3, 1.8 + u * 1.25, -3.30); o.material.opacity = Math.sin(u * Math.PI) * .75; o.scale.setScalar(.25 + u * .16); });
+        tickPets(dt);
         stars.children.forEach((o, i) => o.scale.setScalar(.75 + .25 * Math.sin(elapsed * 1.4 + i)));
       },
       render(renderer) { renderer.clear(); renderer.render(room, camera); },
       get isOpen() { return open; },
-      get state() { return { open, sleeping, selectedBed, girlAwake: characters[1]?.awake, boyAwake: characters[0]?.awake, night: lastNight, characters: characters.map(c => ({ awake: c.awake, position: c.root.position.toArray(), eyesClosed: c.closed.every(o => o.visible) })) }; },
+      get state() { return { open, sleeping, selectedBed, girlAwake: characters[1]?.awake, boyAwake: characters[0]?.awake, night: env.isNight(), journey:journey?.kind||null, stage:journey?.stage||null, idleMs:performance.now()-idleSince, camera:camera.position.toArray(), lights:{ambient:ambient.intensity,lamp:lamp.intensity,moon:fill.intensity}, pets:pets.map(p=>({visible:p.root.visible,resting:p.resting,position:p.root.position.toArray(),eyesClosed:p.closed.every(o=>o.visible)})), characters: characters.map(c => ({ awake: c.awake, position: c.root.position.toArray(), eyesClosed: c.closed.every(o => o.visible) })) }; },
       // Read-only scene coordinates are also useful for keyboard/accessibility adapters.
       screenPoint(kind, index = 0) { const o = kind === 'door' ? door : kind === 'bed' ? beds[index] : group; const p = o.getWorldPosition(new T.Vector3()); if (kind === 'door') p.y += 1.4; if (kind === 'bed') p.y += 1; if (kind === 'floor') p.set(0, .08, 2); p.project(camera); return { x: (p.x + 1) * innerWidth / 2, y: (1 - p.y) * innerHeight / 2 }; }
     };
